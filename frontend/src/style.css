@@ -86,6 +86,7 @@ a { color: inherit; }
 .workspace-switch > div:nth-child(2) { min-width: 0; display: grid; gap: 4px; }
 .workspace-overline { color: #829b91; font-size: 8px; font-weight: 800; letter-spacing: 1.2px; }
 .workspace-switch strong { overflow: hidden; color: #edf5f0; font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-description { color: #8da29a; font-size: 8px; line-height: 1.4; }
 .workspace-chevron { margin-left: auto; color: #91a69d; font-size: 17px; }
 .nav-section-label { padding: 0 10px; color: #708981; font-size: 8px; font-weight: 800; letter-spacing: 1.35px; }
 .side-nav { display: grid; gap: 5px; margin-top: 11px; }
@@ -129,6 +130,9 @@ a { color: inherit; }
 .welcome-row h1 span { color: #448668; }
 .welcome-row > div:first-child > p { margin: 0; color: #82928b; font-size: 11px; line-height: 1.6; }
 .admin-page-heading { min-height: 112px; margin-bottom: 22px; padding-top: 8px; }
+.back-overview-button { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; padding: 5px 0; color: #527765; border: 0; background: transparent; font-size: 10px; font-weight: 650; }
+.back-overview-button:hover { color: #126b58; }
+.back-overview-button:focus-visible { outline: 2px solid #51a480; outline-offset: 3px; border-radius: 3px; }
 .admin-page-heading h1 { margin: 12px 0 5px; color: #18352e; font: 650 30px/1.2 'Segoe UI', system-ui, sans-serif; letter-spacing: -1px; }
 .admin-page-heading p { margin: 0; color: #82928b; font-size: 11px; line-height: 1.6; }
 .welcome-art { position: relative; width: 142px; height: 142px; display: grid; flex: none; place-items: center; margin-right: 27px; }
@@ -140,6 +144,10 @@ a { color: inherit; }
 .spark-a { top: 22px; right: 17px; }.spark-b { bottom: 25px; left: 12px; width: 4px; height: 4px; }
 .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
 .metric-card { min-height: 120px; padding: 16px 17px 13px; border: 1px solid #e6ece8; border-radius: 11px; background: #fff; box-shadow: 0 4px 14px rgba(24, 57, 45, .025); }
+.metric-card-action { width: 100%; color: inherit; font-family: inherit; text-align: left; appearance: none; cursor: pointer; transition: transform .16s, border-color .16s, box-shadow .16s; }
+.metric-card-action:hover { transform: translateY(-2px); border-color: #b8d9c5; box-shadow: 0 8px 20px rgba(24, 57, 45, .09); }
+.metric-card-action:focus-visible { outline: 3px solid rgba(54, 148, 105, .38); outline-offset: 3px; }
+.metric-primary.metric-card-action:hover { border-color: #2b8062; }
 .metric-primary { color: #edf8f1; border-color: #155f4b; background: linear-gradient(135deg, #17674f, #105340); }
 .metric-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #84948c; font-size: 9px; font-weight: 600; }
 .metric-primary .metric-top { color: #c5e4d2; }

@@ -14,6 +14,7 @@ const iconPaths = {
   eyeOff: <><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8" /><path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a15.8 15.8 0 0 1-3.1 4.1M6.2 6.2C3.4 8.1 2 12 2 12s3.5 7 10 7a10.9 10.9 0 0 0 3-.4" /></>,
   close: <><path d="m18 6-12 12M6 6l12 12" /></>,
   arrow: <><path d="M5 12h14M13 6l6 6-6 6" /></>,
+  back: <><path d="M19 12H5M12 19l-7-7 7-7" /></>,
   file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h8" /></>,
   download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5M12 15V3" /></>,
 };
@@ -41,6 +42,7 @@ function App() {
   const [createOpen, setCreateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  const [accountStatusFilter, setAccountStatusFilter] = useState('ALL');
   const [documents, setDocuments] = useState([]);
   const [eligibleViewers, setEligibleViewers] = useState([]);
   const [viewerOptionsFailed, setViewerOptionsFailed] = useState(false);
@@ -160,9 +162,10 @@ function App() {
   const filteredUsers = useMemo(() => adminUsers.filter(account => {
     const search = searchTerm.trim().toLowerCase();
     const matchesSearch = !search || `${account.displayName} ${account.email}`.toLowerCase().includes(search);
-    const matchesRole = roleFilter === 'ALL' || account.role === roleFilter;
-    return matchesSearch && matchesRole;
-  }), [adminUsers, roleFilter, searchTerm]);
+    const matchesRole = roleFilter === 'ALL' || (roleFilter === 'TEAM' ? account.role !== 'ADMINISTRATOR' : account.role === roleFilter);
+    const matchesStatus = accountStatusFilter === 'ALL' || (accountStatusFilter === 'ACTIVE' ? account.active : !account.active);
+    return matchesSearch && matchesRole && matchesStatus;
+  }), [accountStatusFilter, adminUsers, roleFilter, searchTerm]);
 
   const accountCounts = useMemo(() => ({
     total: adminUsers.filter(account => account.role !== 'ADMINISTRATOR').length,
@@ -265,6 +268,18 @@ function App() {
     finally { setBusy(false); }
   }
 
+  function openAccounts(role = 'TEAM', status = 'ALL') {
+    setRoleFilter(role);
+    setAccountStatusFilter(status);
+    setAdminPage('accounts');
+    window.location.hash = '#accounts';
+  }
+
+  function openOverview() {
+    setAdminPage('overview');
+    window.location.hash = '#overview';
+  }
+
   if (!user) {
     return <main className="login-page">
       <section className="login-story" aria-label="About TrustVault">
@@ -304,10 +319,10 @@ function App() {
   return <div className="app-layout">
     <aside className="sidebar">
       <a className="brand brand-light sidebar-brand" href="#overview"><span className="brand-mark"><Icon name="shield" size={21} /></span><span>trustvault<span className="brand-period">.</span></span></a>
-      <div className="workspace-switch"><div className="workspace-avatar"><Icon name="shield" size={16} /></div><div><span className="workspace-overline">WORKSPACE</span><strong>My organization</strong></div><span className="workspace-chevron">⌄</span></div>
+      <div className="workspace-switch" aria-label="Current organization: My organization"><div className="workspace-avatar"><Icon name="shield" size={16} /></div><div><span className="workspace-overline">CURRENT ORGANIZATION</span><strong>My organization</strong><span className="workspace-description">Your TrustVault workspace</span></div></div>
       <div className="nav-section-label">WORKSPACE</div>
       <nav className="side-nav" aria-label="Main navigation"><a className={`nav-link ${!isAdmin || adminPage === 'overview' ? 'active' : ''}`} href="#overview" onClick={() => setAdminPage('overview')} aria-current={!isAdmin || adminPage === 'overview' ? 'page' : undefined}><Icon name="grid" /><span>Overview</span>{(!isAdmin || adminPage === 'overview') && <span className="nav-indicator" />}</a>{isAdmin && <a className={`nav-link ${adminPage === 'accounts' ? 'active' : ''}`} href="#accounts" onClick={() => setAdminPage('accounts')} aria-current={adminPage === 'accounts' ? 'page' : undefined}><Icon name="users" /><span>Accounts</span><span className="nav-count">{accountCounts.total}</span>{adminPage === 'accounts' && <span className="nav-indicator" />}</a>}</nav>
-      <div className="sidebar-note"><span className="note-mark"><Icon name="lock" size={15} /></span><strong>Access matters</strong><p>Only authorized accounts can enter this workspace.</p></div>
+      <aside className="sidebar-note" aria-label="How access is protected"><span className="note-mark"><Icon name="lock" size={15} /></span><strong>Your files stay protected</strong><p>Owners choose which Viewers can access each document. Administrators manage accounts but cannot open document files.</p></aside>
       <div className="sidebar-bottom"><div className="online-dot" /> <span>Workspace available</span><button type="button" className="sidebar-logout" onClick={signOut} disabled={busy} aria-label="Sign out"><Icon name="logout" size={17} /></button></div>
     </aside>
 
@@ -315,19 +330,19 @@ function App() {
       <header className="topbar"><div className="breadcrumb"><span>Workspace</span><span className="crumb-slash">/</span><strong>{isAdmin && adminPage === 'accounts' ? 'Accounts' : 'Overview'}</strong></div><div className="topbar-actions"><div className="topbar-date"><span className="date-dot" /> PRIVATE WORKSPACE</div><div className="topbar-divider" /><div className="user-menu"><div className="avatar">{initials(user.displayName)}</div><div className="user-menu-text"><strong>{user.displayName}</strong><span>{roleName}</span></div><button type="button" className="topbar-signout" onClick={signOut} disabled={busy}><Icon name="logout" size={16} /><span>Sign out</span></button></div></div></header>
 
       <div className="content-wrap">
-        {isAdmin && adminPage === 'accounts' ? <section className="admin-page-heading"><div className="page-eyebrow"><span className="eyebrow-line" /> PEOPLE & ACCESS</div><h1>Accounts</h1><p>View and manage the people in your TrustVault workspace.</p></section> : <section className="welcome-row"><div><div className="page-eyebrow"><span className="eyebrow-line" /> TRUSTVAULT WORKSPACE</div><h1>{isAdmin ? 'Good to see you,' : 'Welcome to your workspace,'}<br /><span>{user.displayName.split(' ')[0]}.</span></h1><p>{isAdmin ? 'A clear view of the people who belong here.' : 'Your account is ready. Your document workspace is being prepared.'}</p></div><div className="welcome-art" aria-hidden="true"><div className="art-ring ring-a" /><div className="art-ring ring-b" /><div className="art-shield"><Icon name="shield" size={36} /></div><span className="art-spark spark-a" /><span className="art-spark spark-b" /></div></section>}
+        {isAdmin && adminPage === 'accounts' ? <section className="admin-page-heading"><button type="button" className="back-overview-button" onClick={openOverview}><Icon name="back" size={15} /> Back to overview</button><div className="page-eyebrow"><span className="eyebrow-line" /> PEOPLE & ACCESS</div><h1>Accounts</h1><p>View and manage the people in your TrustVault workspace.</p></section> : <section className="welcome-row"><div><div className="page-eyebrow"><span className="eyebrow-line" /> TRUSTVAULT WORKSPACE</div><h1>{isAdmin ? 'Good to see you,' : 'Welcome to your workspace,'}<br /><span>{user.displayName.split(' ')[0]}.</span></h1><p>{isAdmin ? 'A clear view of the people who belong here.' : 'Your account is ready. Your document workspace is being prepared.'}</p></div><div className="welcome-art" aria-hidden="true"><div className="art-ring ring-a" /><div className="art-ring ring-b" /><div className="art-shield"><Icon name="shield" size={36} /></div><span className="art-spark spark-a" /><span className="art-spark spark-b" /></div></section>}
 
         {isAdmin ? <>
           {adminPage === 'overview' && <section className="metrics-grid" aria-label="Account summary">
-            <article className="metric-card metric-primary"><div className="metric-top"><span>Total team accounts</span><span className="metric-icon"><Icon name="users" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.total.toString().padStart(2, '0')}</div><div className="metric-foot"><span className="metric-pip" /> Owners and viewers</div></article>
-            <article className="metric-card"><div className="metric-top"><span>Owners</span><span className="metric-icon metric-icon-blue"><Icon name="shield" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.owners.toString().padStart(2, '0')}</div><div className="metric-foot">Manage their own workspace</div></article>
-            <article className="metric-card"><div className="metric-top"><span>Viewers</span><span className="metric-icon metric-icon-lilac"><Icon name="eye" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.viewers.toString().padStart(2, '0')}</div><div className="metric-foot">Access is individually granted</div></article>
-            <article className="metric-card"><div className="metric-top"><span>Active accounts</span><span className="metric-icon metric-icon-green"><Icon name="lock" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.active.toString().padStart(2, '0')}</div><div className="metric-foot"><span className="metric-pip" /> Ready to sign in</div></article>
+            <button type="button" className="metric-card metric-primary metric-card-action" onClick={() => openAccounts('TEAM')} aria-label={`Show all ${accountCounts.total} team accounts`}><div className="metric-top"><span>Total team accounts</span><span className="metric-icon"><Icon name="users" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.total.toString().padStart(2, '0')}</div><div className="metric-foot"><span className="metric-pip" /> Owners and viewers · View accounts</div></button>
+            <button type="button" className="metric-card metric-card-action" onClick={() => openAccounts('OWNER')} aria-label={`Show ${accountCounts.owners} owner accounts`}><div className="metric-top"><span>Owners</span><span className="metric-icon metric-icon-blue"><Icon name="shield" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.owners.toString().padStart(2, '0')}</div><div className="metric-foot">Manage their own workspace · View owners</div></button>
+            <button type="button" className="metric-card metric-card-action" onClick={() => openAccounts('VIEWER')} aria-label={`Show ${accountCounts.viewers} viewer accounts`}><div className="metric-top"><span>Viewers</span><span className="metric-icon metric-icon-lilac"><Icon name="eye" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.viewers.toString().padStart(2, '0')}</div><div className="metric-foot">Access is individually granted · View viewers</div></button>
+            <button type="button" className="metric-card metric-card-action" onClick={() => openAccounts('TEAM', 'ACTIVE')} aria-label={`Show ${accountCounts.active} active team accounts`}><div className="metric-top"><span>Active accounts</span><span className="metric-icon metric-icon-green"><Icon name="lock" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.active.toString().padStart(2, '0')}</div><div className="metric-foot"><span className="metric-pip" /> Ready to sign in · View active</div></button>
           </section>}
 
           {adminPage === 'accounts' && <section className="accounts-card" id="accounts" aria-labelledby="accounts-title">
             <div className="section-heading"><div><div className="section-kicker">PEOPLE & ACCESS</div><h2 id="accounts-title">Account directory</h2><p>Manage who can sign in to TrustVault.</p></div><button className="primary-button create-button" type="button" onClick={() => { setAdminMessage(''); setCreateOpen(true); }}><Icon name="plus" size={17} /> Create account</button></div>
-            <div className="directory-toolbar"><label className="search-field"><Icon name="search" size={17} /><input type="search" aria-label="Search accounts" placeholder="Search by name or email" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></label><label className="filter-select"><span>Role</span><select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} aria-label="Filter by role"><option value="ALL">All roles</option><option value="ADMINISTRATOR">Administrator</option><option value="OWNER">Owner</option><option value="VIEWER">Viewer</option></select></label></div>
+            <div className="directory-toolbar"><label className="search-field"><Icon name="search" size={17} /><input type="search" aria-label="Search accounts" placeholder="Search by name or email" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></label><label className="filter-select"><span>Role</span><select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} aria-label="Filter by role"><option value="ALL">All roles</option><option value="TEAM">Owners and viewers</option><option value="ADMINISTRATOR">Administrator</option><option value="OWNER">Owner</option><option value="VIEWER">Viewer</option></select></label><label className="filter-select"><span>Status</span><select value={accountStatusFilter} onChange={e => setAccountStatusFilter(e.target.value)} aria-label="Filter by account status"><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></label></div>
             {adminMessage && <p className={`admin-feedback ${adminMessage.startsWith('Created') || adminMessage.includes('now active') ? 'success' : ''}`} role="status">{adminMessage}</p>}
             <div className="table-scroll"><table className="accounts-table"><thead><tr><th>ACCOUNT</th><th>ROLE</th><th>STATUS</th><th className="actions-heading">ACTIONS</th></tr></thead><tbody>
               {adminLoading ? <tr><td colSpan="4" className="table-message">Loading accounts…</td></tr> : filteredUsers.length === 0 ? <tr><td colSpan="4" className="table-message">{adminUsers.length === 0 ? 'No accounts yet. Create an owner or viewer account to get started.' : 'No accounts match your search.'}</td></tr> : filteredUsers.map(account => <tr key={account.id}><td><div className="account-identity"><div className={`account-avatar ${account.role === 'ADMINISTRATOR' ? 'avatar-admin' : account.role === 'VIEWER' ? 'avatar-viewer' : ''}`}>{initials(account.displayName)}</div><div className="account-name"><strong>{account.displayName}</strong><span>{account.email}</span></div></div></td><td><span className={`role-pill role-${account.role.toLowerCase()}`}>{account.role === 'ADMINISTRATOR' ? 'Administrator' : account.role === 'OWNER' ? 'Owner' : 'Viewer'}</span></td><td><span className={`status-pill ${account.active ? 'status-active' : 'status-inactive'}`}><span />{account.active ? 'Active' : 'Inactive'}</span></td><td className="actions-cell">{account.role !== 'ADMINISTRATOR' ? <button type="button" className={`row-action ${account.active ? 'deactivate-action' : 'activate-action'}`} onClick={() => toggleAccount(account)} disabled={busy}>{account.active ? 'Deactivate' : 'Reactivate'}</button> : <span className="self-label">You</span>}</td></tr>)}
