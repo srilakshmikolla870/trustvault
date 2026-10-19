@@ -44,8 +44,8 @@ The initial project foundation was drafted in the Codex session on 2026-10-18. T
 **Prompt or fair summary:** Continue MVP development after confirming the local main branch was clean and synchronized with origin.
 **Output:** Added active Viewer selection, per-document READ/EDIT grant and revoke endpoints, current-grant checks on list/download/metadata update, Owner sharing controls, Viewer document list, and focused service tests.
 **Issue found or verification performed:** Initial repository state had in-progress grant entity and repository files but no service/controller/UI integration. Frontend production build passed (`npm run build`, Vite 8.3.4; 15 modules). The user's first Maven run found a missing `UserEntity` import and related inferred-list type error; after that fix, the next run compiled Java but found unnecessary shared Owner-account stubbing in two Viewer tests.
-**Correction and evidence:** Added the missing import, explicit `List<GrantSummary>` type, and moved Owner test setup into only the tests that use it. The latest correction is awaiting a new Maven run. PostgreSQL revocation behavior and HTTP/CSRF checks remain unverified.
-**Commit:** Not committed yet.
+**Correction and evidence:** Added the missing import, explicit `List<GrantSummary>` type, and moved Owner test setup into only the tests that use it. The user then ran `mvn test`: 16 tests passed, 0 failures, 0 errors, 0 skipped. These service tests cover current READ grant download and no-current-grant denial; PostgreSQL revocation behavior and HTTP/CSRF checks remain unverified. The initial feature commit is local; GitHub push attempt failed because this session could not resolve GitHub.
+**Commit:** `b02b660` (local; push pending).
 
 ## 2026-10-18 — MVP foundation and authentication slice
 
