@@ -55,4 +55,9 @@ public class DocumentEntity {
     public String getStorageKey() { return storageKey; }
     public String getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
+    public void updateMetadata(String title, String category) {
+        this.title = title;
+        this.category = category;
+        this.updatedAt = Instant.now();
+    }
 }

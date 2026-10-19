@@ -7,8 +7,10 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.time.Instant;
 
 import com.trustvault.audit.AuditEventWriter;
+import com.trustvault.users.UserEntity;
 import com.trustvault.users.UserRepository;
 import com.trustvault.users.UserRole;
 import org.springframework.stereotype.Service;
@@ -20,13 +22,15 @@ public class DocumentService {
     private static final int MAX_BYTES = 10 * 1024 * 1024;
     private final DocumentRepository documents;
     private final UserRepository users;
+    private final DocumentGrantRepository grants;
     private final PrivateDocumentStorage storage;
     private final AuditEventWriter audit;
 
-    public DocumentService(DocumentRepository documents, UserRepository users,
+    public DocumentService(DocumentRepository documents, UserRepository users, DocumentGrantRepository grants,
             PrivateDocumentStorage storage, AuditEventWriter audit) {
         this.documents = documents;
         this.users = users;
+        this.grants = grants;
         this.storage = storage;
         this.audit = audit;
     }
@@ -62,21 +66,26 @@ public class DocumentService {
     @Transactional
     public List<DocumentSummary> listOwned(UUID actorId) {
         var user = users.findById(actorId).orElseThrow(NotFoundException::new);
-        if (!user.isActive() || user.getRole() != UserRole.OWNER) {
-            audit.recordIndependentDocumentEvent(actorId, null, "DOCUMENT_LIST", "DENIED", "OWNER_SCOPE_REQUIRED");
+        if (!user.isActive() || user.getRole() == UserRole.ADMINISTRATOR) {
+            audit.recordIndependentDocumentEvent(actorId, null, "DOCUMENT_LIST", "DENIED", "DOCUMENT_ROLE_REQUIRED");
             return List.of();
         }
-        audit.recordDocumentEvent(actorId, null, "DOCUMENT_LIST", "ALLOWED", "OWNER_LIST_SUCCEEDED");
-        return documents.findAllByOwnerIdAndStatusOrderByCreatedAtDesc(actorId, "ACTIVE")
-                .stream().map(DocumentService::summary).toList();
+        audit.recordDocumentEvent(actorId, null, "DOCUMENT_LIST", "ALLOWED", "AUTHORIZED_LIST_SUCCEEDED");
+        return documents.findAllVisibleTo(actorId).stream().map(document -> {
+            boolean owner = document.getOwnerId().equals(actorId);
+            var grant = owner ? null : grants.findCurrentGrant(document.getId(), actorId).orElse(null);
+            return summary(document, owner, owner || (grant != null && grant.getPermission() == GrantPermission.EDIT));
+        }).toList();
     }
 
     @Transactional
     public DownloadedDocument download(UUID actorId, UUID documentId) {
         var user = users.findById(actorId).orElseThrow(NotFoundException::new);
         var document = documents.findByIdAndStatus(documentId, "ACTIVE").orElse(null);
-        if (!user.isActive() || user.getRole() != UserRole.OWNER || document == null
-                || !document.getOwnerId().equals(actorId)) {
+        var grant = document == null ? null : grants.findCurrentGrant(documentId, actorId).orElse(null);
+        boolean owner = document != null && document.getOwnerId().equals(actorId);
+        if (!user.isActive() || user.getRole() == UserRole.ADMINISTRATOR || document == null
+                || (!owner && (user.getRole() != UserRole.VIEWER || grant == null))) {
             audit.recordIndependentDocumentEvent(actorId, documentId, "DOCUMENT_DOWNLOAD", "DENIED", "NOT_AUTHORIZED_OR_NOT_FOUND");
             throw new NotFoundException();
         }
@@ -88,6 +97,88 @@ public class DocumentService {
             audit.recordIndependentDocumentEvent(actorId, documentId, "DOCUMENT_DOWNLOAD", "FAILED", "STORAGE_FAILURE");
             throw new StorageFailureException();
         }
+    }
+
+    @Transactional
+    public List<ViewerOption> eligibleViewers(UUID actorId) {
+        requireOwner(actorId, null, "GRANT_LIST", "OWNER_REQUIRED");
+        return users.findAllByRoleAndActiveTrueOrderByDisplayNameAsc(UserRole.VIEWER).stream()
+                .map(u -> new ViewerOption(u.getId(), u.getDisplayName(), u.getEmail())).toList();
+    }
+
+    @Transactional
+    public List<GrantSummary> listGrants(UUID actorId, UUID documentId) {
+        requireOwnedDocument(actorId, documentId, "GRANT_LIST");
+        List<GrantSummary> result = grants.findAllByDocumentIdAndRevokedAtIsNullOrderByGrantedAtDesc(documentId).stream()
+                .filter(g -> g.getExpiresAt() == null || g.getExpiresAt().isAfter(Instant.now()))
+                .map(g -> users.findById(g.getUserId()).filter(UserEntity::isActive)
+                        .map(u -> new GrantSummary(u.getId(), u.getDisplayName(), u.getEmail(), g.getPermission()))
+                        .orElse(null)).filter(java.util.Objects::nonNull).toList();
+        return result;
+    }
+
+    @Transactional
+    public GrantSummary grant(UUID actorId, UUID documentId, UUID userId, GrantPermission permission) {
+        if (permission == null) throw new InvalidDocumentException("Choose READ or EDIT access.");
+        requireOwnedDocument(actorId, documentId, "DOCUMENT_GRANT");
+        var target = users.findById(userId).filter(UserEntity::isActive)
+                .filter(u -> u.getRole() == UserRole.VIEWER).orElseThrow(NotFoundException::new);
+        var grant = grants.findByDocumentIdAndUserIdAndRevokedAtIsNull(documentId, userId).orElse(null);
+        if (grant == null) {
+            grant = grants.save(new DocumentGrantEntity(UUID.randomUUID(), documentId, userId, permission, actorId));
+        } else {
+            grant.renewWithPermission(permission);
+            grants.save(grant);
+        }
+        audit.recordDocumentEvent(actorId, documentId, "DOCUMENT_GRANT", "ALLOWED", "GRANT_CREATED_OR_CHANGED");
+        return new GrantSummary(target.getId(), target.getDisplayName(), target.getEmail(), permission);
+    }
+
+    @Transactional
+    public void revoke(UUID actorId, UUID documentId, UUID userId) {
+        requireOwnedDocument(actorId, documentId, "DOCUMENT_REVOKE");
+        var grant = grants.findByDocumentIdAndUserIdAndRevokedAtIsNull(documentId, userId).orElseThrow(NotFoundException::new);
+        grant.revoke();
+        grants.save(grant);
+        audit.recordDocumentEvent(actorId, documentId, "DOCUMENT_REVOKE", "ALLOWED", "GRANT_REVOKED");
+    }
+
+    @Transactional
+    public DocumentSummary editMetadata(UUID actorId, UUID documentId, String title, String category) {
+        var user = users.findById(actorId).orElseThrow(NotFoundException::new);
+        var document = documents.findByIdAndStatus(documentId, "ACTIVE").orElseThrow(NotFoundException::new);
+        var grant = grants.findCurrentGrant(documentId, actorId).orElse(null);
+        boolean owner = document.getOwnerId().equals(actorId);
+        if (!user.isActive() || user.getRole() == UserRole.ADMINISTRATOR || (!owner &&
+                (user.getRole() != UserRole.VIEWER || grant == null || grant.getPermission() != GrantPermission.EDIT))) {
+            audit.recordIndependentDocumentEvent(actorId, documentId, "DOCUMENT_EDIT", "DENIED", "NOT_AUTHORIZED_OR_NOT_FOUND");
+            throw new NotFoundException();
+        }
+        if (title == null || title.isBlank() || title.trim().length() > 200 || category == null || category.isBlank() || category.trim().length() > 80) {
+            throw new InvalidDocumentException("Provide a title and category within the allowed length.");
+        }
+        document.updateMetadata(title.trim(), category.trim());
+        var saved = documents.save(document);
+        audit.recordDocumentEvent(actorId, documentId, "DOCUMENT_EDIT", "ALLOWED", "METADATA_UPDATED");
+        return summary(saved, owner, true);
+    }
+
+    private void requireOwner(UUID actorId, UUID documentId, String action, String reason) {
+        var actor = users.findById(actorId).orElseThrow(NotFoundException::new);
+        if (!actor.isActive() || actor.getRole() != UserRole.OWNER) {
+            audit.recordIndependentDocumentEvent(actorId, documentId, action, "DENIED", reason);
+            throw new NotFoundException();
+        }
+    }
+
+    private DocumentEntity requireOwnedDocument(UUID actorId, UUID documentId, String action) {
+        requireOwner(actorId, documentId, action, "OWNER_REQUIRED");
+        var document = documents.findByIdAndStatus(documentId, "ACTIVE").orElse(null);
+        if (document == null || !document.getOwnerId().equals(actorId)) {
+            audit.recordIndependentDocumentEvent(actorId, documentId, action, "DENIED", "NOT_AUTHORIZED_OR_NOT_FOUND");
+            throw new NotFoundException();
+        }
+        return document;
     }
 
     private byte[] validate(String title, String category, MultipartFile file, UUID actorId) {
@@ -134,12 +225,18 @@ public class DocumentService {
     }
 
     private static DocumentSummary summary(DocumentEntity document) {
+        return summary(document, true, true);
+    }
+
+    private static DocumentSummary summary(DocumentEntity document, boolean canManageAccess, boolean canEdit) {
         return new DocumentSummary(document.getId(), document.getTitle(), document.getCategory(),
-                document.getOriginalFilename(), document.getContentType(), document.getSizeBytes(), document.getCreatedAt());
+                document.getOriginalFilename(), document.getContentType(), document.getSizeBytes(), document.getCreatedAt(), canManageAccess, canEdit);
     }
 
     public record DocumentSummary(UUID id, String title, String category, String originalFilename,
-            String contentType, long sizeBytes, java.time.Instant createdAt) {}
+            String contentType, long sizeBytes, java.time.Instant createdAt, boolean canManageAccess, boolean canEdit) {}
+    public record ViewerOption(UUID id, String displayName, String email) {}
+    public record GrantSummary(UUID userId, String displayName, String email, GrantPermission permission) {}
     public record DownloadedDocument(String filename, byte[] bytes) {}
     public static class InvalidDocumentException extends RuntimeException { public InvalidDocumentException(String message) { super(message); } }
     public static class NotFoundException extends RuntimeException {}

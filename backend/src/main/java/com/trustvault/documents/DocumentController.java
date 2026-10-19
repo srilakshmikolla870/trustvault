@@ -17,6 +17,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,6 +36,36 @@ public class DocumentController {
     @GetMapping
     List<DocumentService.DocumentSummary> list(@AuthenticationPrincipal AuthenticatedUser actor) {
         return documents.listOwned(actor.getId());
+    }
+
+    @GetMapping("/eligible-viewers")
+    List<DocumentService.ViewerOption> eligibleViewers(@AuthenticationPrincipal AuthenticatedUser actor) {
+        return documents.eligibleViewers(actor.getId());
+    }
+
+    @GetMapping("/{documentId}/grants")
+    List<DocumentService.GrantSummary> grants(@AuthenticationPrincipal AuthenticatedUser actor, @PathVariable UUID documentId) {
+        return documents.listGrants(actor.getId(), documentId);
+    }
+
+    @PutMapping("/{documentId}/grants/{userId}")
+    DocumentService.GrantSummary grant(@AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID documentId, @PathVariable UUID userId, @RequestBody GrantRequest request) {
+        return documents.grant(actor.getId(), documentId, userId, request == null ? null : request.permission());
+    }
+
+    @DeleteMapping("/{documentId}/grants/{userId}")
+    ResponseEntity<Void> revoke(@AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID documentId, @PathVariable UUID userId) {
+        documents.revoke(actor.getId(), documentId, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{documentId}")
+    DocumentService.DocumentSummary edit(@AuthenticationPrincipal AuthenticatedUser actor,
+            @PathVariable UUID documentId, @RequestBody MetadataRequest request) {
+        if (request == null) throw new DocumentService.InvalidDocumentException("Provide a title and category.");
+        return documents.editMetadata(actor.getId(), documentId, request.title(), request.category());
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -66,4 +100,7 @@ public class DocumentController {
     ResponseEntity<Map<String, String>> storageFailure(DocumentService.StorageFailureException exception) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", exception.getMessage()));
     }
+
+    record GrantRequest(com.trustvault.documents.GrantPermission permission) {}
+    record MetadataRequest(String title, String category) {}
 }

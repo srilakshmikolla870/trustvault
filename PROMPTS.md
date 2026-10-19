@@ -38,6 +38,15 @@ The initial project foundation was drafted in the Codex session on 2026-10-18. T
 **Correction and evidence:** `npm run build` passed after the Owner workspace integration and again after replacing the post-submit event access with a file-input ref. The user ran Maven on 2026-10-19: 14 tests passed, 0 failures, 0 errors, and 0 skipped, before the checksum type-mapping correction. The added document tests cover invalid PDF signature rejection, successful upload summary, and cross-owner download denial before storage read. The latest backend startup and refreshed-browser upload flow remain unverified.
 **Commit:** `d9d26f0` (document workflow) and `0fe062a` (startup mapping and upload reset fixes; local commits pending push).
 
+## 2026-10-19 — Named Viewer grants and revocation
+
+**Tool:** Codex coding assistant
+**Prompt or fair summary:** Continue MVP development after confirming the local main branch was clean and synchronized with origin.
+**Output:** Added active Viewer selection, per-document READ/EDIT grant and revoke endpoints, current-grant checks on list/download/metadata update, Owner sharing controls, Viewer document list, and focused service tests.
+**Issue found or verification performed:** Initial repository state had in-progress grant entity and repository files but no service/controller/UI integration. Frontend production build passed (`npm run build`, Vite 8.3.4; 15 modules). The user's first Maven run found a missing `UserEntity` import and related inferred-list type error; after that fix, the next run compiled Java but found unnecessary shared Owner-account stubbing in two Viewer tests.
+**Correction and evidence:** Added the missing import, explicit `List<GrantSummary>` type, and moved Owner test setup into only the tests that use it. The latest correction is awaiting a new Maven run. PostgreSQL revocation behavior and HTTP/CSRF checks remain unverified.
+**Commit:** Not committed yet.
+
 ## 2026-10-18 — MVP foundation and authentication slice
 
 **Tool:** Codex coding assistant

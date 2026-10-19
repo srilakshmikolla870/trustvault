@@ -4,7 +4,7 @@ Secure document sharing for the Snovasys Fresher Hiring Challenge 2026.
 
 ## Current status
 
-This repository contains the MVP foundation, authentication, account administration, and the first document slice. Owners can upload, list, and download their own validated PDFs from private local storage. Viewer grants, metadata editing, search, soft deletion, document activity views, database-level audit immutability, and deployment are not implemented yet.
+This repository contains the MVP foundation, authentication, account administration, and document sharing. Owners can upload, list, download, and share validated PDFs with named Viewers as READ or EDIT. Current grants are checked for every list and download request, and Owners can revoke access. Search, soft deletion, document activity views, database-level audit immutability, and deployment are not implemented yet.
 
 ## Stack
 
@@ -36,7 +36,7 @@ This repository contains the MVP foundation, authentication, account administrat
 - On 2026-10-18, the user ran the backend unit suite: 6 tests passed, 0 failures, 0 errors. These were the authentication/current-account tests before user administration tests were added.
 - On 2026-10-19, the user's local log showed PostgreSQL 16.15 connected, Flyway migration V1 validated, Hibernate initialized, and Tomcat started. A later startup attempt failed during bootstrap-admin validation; the current successful browser health/login check is not yet recorded.
 - `npm run build` passed after the account-administration UI changes (Vite transformed 15 modules and emitted the production bundle).
-- On 2026-10-19, the user ran `mvn test`: 14 tests passed, with 0 failures, 0 errors, and 0 skipped. This includes the three initial document-service tests and the authentication/account-administration service tests. A later application startup exposed a Hibernate/PostgreSQL `CHAR(64)` mapping mismatch; the Java mapping has been corrected, but the tests and application startup need to be rerun after that fix.
+- On 2026-10-19, the user ran `mvn test`: 14 tests passed, with 0 failures, 0 errors, and 0 skipped, before the checksum mapping correction and sharing work. Current service tests add grant-based download allow/deny coverage; rerun the suite before treating sharing as verified.
 - The frontend production build passed after the Owner PDF upload/list/download UI was added. Manual HTTP checks for the new document endpoints and database-backed integration tests remain pending.
 - A later user test exposed a frontend form reset error after upload; the file input now clears through a React ref. `npm run build` passed after that fix. Confirm the form behavior in the refreshed browser after the backend starts successfully.
 
@@ -65,4 +65,4 @@ After signing in as the bootstrap administrator, the React interface can create 
 
 Sign in with an OWNER account and submit a PDF with a title and category. Uploads are limited to 10 MiB and validated by file extension, MIME type, and PDF header signature. Bytes are stored outside the web root with a generated opaque name. The owner can list and download their own active documents. The download endpoint checks ownership on every request, uses attachment delivery, and disables caching. Set `TRUSTVAULT_STORAGE_DIR` to a private persistent directory before running outside local development. Do not place this directory under a publicly served frontend path.
 
-This initial slice does not yet implement sharing grants, Viewer access, editing metadata, search, or soft deletion. A Viewer currently sees an empty document list and cannot download documents.
+Owners can share a file with an active Viewer using READ or EDIT access from each document row. READ permits listing and downloading. EDIT also permits title/category changes through the API. Revocation is checked against the database on each new request, so the next request from the same logged-in Viewer is denied. Administrators do not gain document access from their role. Metadata editing has an API endpoint but no UI controls yet. Search and soft deletion remain unfinished.

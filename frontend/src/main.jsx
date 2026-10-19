@@ -41,6 +41,9 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [documents, setDocuments] = useState([]);
+  const [eligibleViewers, setEligibleViewers] = useState([]);
+  const [documentGrants, setDocumentGrants] = useState({});
+  const [shareSelections, setShareSelections] = useState({});
   const [documentBusy, setDocumentBusy] = useState(false);
   const [documentMessage, setDocumentMessage] = useState('');
   const [documentForm, setDocumentForm] = useState({ title: '', category: '', file: null });
@@ -88,17 +91,58 @@ function App() {
   }, [user]);
 
   useEffect(() => {
-    if (user?.role !== 'OWNER') return;
+    if (!['OWNER', 'VIEWER'].includes(user?.role)) return;
     let active = true;
     fetch('/api/documents')
       .then(async response => {
         if (!response.ok) throw new Error('Could not load your documents. Try refreshing the page.');
         return response.json();
       })
-      .then(items => { if (active) setDocuments(items); })
+      .then(async items => {
+        if (!active) return;
+        setDocuments(items);
+        if (user.role === 'OWNER') {
+          const [viewersResponse, ...grantResponses] = await Promise.all([
+            fetch('/api/documents/eligible-viewers'), ...items.map(item => fetch(`/api/documents/${item.id}/grants`))
+          ]);
+          if (viewersResponse.ok) setEligibleViewers(await viewersResponse.json());
+          const map = {};
+          for (let index = 0; index < items.length; index++) if (grantResponses[index].ok) map[items[index].id] = await grantResponses[index].json();
+          if (active) setDocumentGrants(map);
+        }
+      })
       .catch(error => { if (active) setDocumentMessage(error.message); });
     return () => { active = false; };
   }, [user]);
+
+  async function changeGrant(documentId, userId, permission) {
+    setDocumentBusy(true); setDocumentMessage('');
+    try {
+      const token = csrf || await refreshCsrf();
+      const response = await fetch(`/api/documents/${documentId}/grants/${userId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token }, body: JSON.stringify({ permission }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not share this document.');
+      const grantsResponse = await fetch(`/api/documents/${documentId}/grants`);
+      if (grantsResponse.ok) {
+        const items = await grantsResponse.json();
+        setDocumentGrants(current => ({ ...current, [documentId]: items }));
+      }
+      setDocumentMessage(`Access updated for ${result.displayName}.`);
+    } catch (error) { setDocumentMessage(error.message); }
+    finally { setDocumentBusy(false); }
+  }
+
+  async function revokeGrant(documentId, grant) {
+    setDocumentBusy(true); setDocumentMessage('');
+    try {
+      const token = csrf || await refreshCsrf();
+      const response = await fetch(`/api/documents/${documentId}/grants/${grant.userId}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': token } });
+      if (!response.ok) throw new Error('Could not revoke access.');
+      setDocumentGrants(current => ({ ...current, [documentId]: (current[documentId] || []).filter(item => item.userId !== grant.userId) }));
+      setDocumentMessage(`Access revoked for ${grant.displayName}.`);
+    } catch (error) { setDocumentMessage(error.message); }
+    finally { setDocumentBusy(false); }
+  }
 
   const filteredUsers = useMemo(() => adminUsers.filter(account => {
     const search = searchTerm.trim().toLowerCase();
@@ -278,7 +322,7 @@ function App() {
             <div className="directory-footer"><span>Showing <strong>{filteredUsers.length}</strong> of <strong>{adminUsers.length}</strong> accounts</span><span className="directory-secure"><Icon name="lock" size={13} /> Account controls are server-authorized</span></div>
           </section>
         </> : user.role === 'OWNER' ? <section className="documents-card" aria-labelledby="documents-title">
-          <div className="documents-heading"><div><div className="section-kicker">PRIVATE FILES</div><h2 id="documents-title">Your documents</h2><p>Upload and access PDFs in your private workspace.</p></div><span className="status-pill status-active"><span /> Owner workspace</span></div>
+          <div className="documents-heading"><div><div className="section-kicker">PRIVATE FILES</div><h2 id="documents-title">Your documents</h2><p>Upload, access, and share PDFs in your private workspace.</p></div><span className="status-pill status-active"><span /> Owner workspace</span></div>
           <form className="document-upload-form" onSubmit={uploadDocument}>
             <div className="field"><label htmlFor="document-title">Document title</label><input id="document-title" value={documentForm.title} onChange={e => setDocumentForm({ ...documentForm, title: e.target.value })} required maxLength="200" placeholder="e.g. Project proposal" /></div>
             <div className="field"><label htmlFor="document-category">Category</label><input id="document-category" value={documentForm.category} onChange={e => setDocumentForm({ ...documentForm, category: e.target.value })} required maxLength="80" placeholder="e.g. Business" /></div>
@@ -286,9 +330,10 @@ function App() {
             <button className="primary-button document-submit" type="submit" disabled={documentBusy}>{documentBusy ? <><span className="spinner" /> Uploading…</> : <><Icon name="plus" size={16} /> Upload PDF</>}</button>
           </form>
           {documentMessage && <p className={`document-feedback ${documentMessage.startsWith('PDF uploaded') ? 'success' : ''}`} role="status">{documentMessage}</p>}
-          <div className="documents-list">{documents.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>No documents uploaded yet.</span></div> : documents.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB</span></div><a className="download-link" href={`/api/documents/${document.id}/download`} aria-label={`Download ${document.title}`}><Icon name="download" size={17} /><span>Download</span></a></article>)}</div>
-          <div className="documents-security"><Icon name="lock" size={14} /> Only your account can access these files right now. Sharing is coming in the next feature.</div>
-        </section> : <section className="member-welcome"><div className="member-icon"><Icon name="shield" size={27} /></div><div><div className="section-kicker">YOUR ACCOUNT</div><h2>You’re signed in and ready.</h2><p>Your <strong>{roleName}</strong> account is active. A document appears here when an Owner grants you access.</p><div className="member-status"><span className="status-pill status-active"><span /> Account active</span><span className="member-email">{user.email}</span></div></div></section>}
+          <div className="documents-list">{documents.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>No documents uploaded yet.</span></div> : documents.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB</span></div><a className="download-link" href={`/api/documents/${document.id}/download`} aria-label={`Download ${document.title}`}><Icon name="download" size={17} /><span>Download</span></a><div className="share-controls"><select aria-label={`Choose viewer for ${document.title}`} value={shareSelections[document.id]?.userId || ''} onChange={e => setShareSelections(current => ({ ...current, [document.id]: { userId: e.target.value, permission: current[document.id]?.permission || 'READ' } }))}><option value="">Select viewer</option>{eligibleViewers.map(viewer => <option key={viewer.id} value={viewer.id}>{viewer.displayName}</option>)}</select><select aria-label={`Choose permission for ${document.title}`} value={shareSelections[document.id]?.permission || 'READ'} onChange={e => setShareSelections(current => ({ ...current, [document.id]: { ...current[document.id], permission: e.target.value } }))}><option value="READ">READ</option><option value="EDIT">EDIT</option></select><button className="download-link" type="button" disabled={!shareSelections[document.id]?.userId || documentBusy} onClick={() => changeGrant(document.id, shareSelections[document.id].userId, shareSelections[document.id].permission)}>Share</button>{(documentGrants[document.id] || []).map(grant => <span className="grant-chip" key={grant.userId}>{grant.displayName}: {grant.permission}<button type="button" aria-label={`Revoke ${grant.displayName}`} onClick={() => revokeGrant(document.id, grant)}>Revoke</button></span>)}</div></article>)}</div>
+          {documentMessage && <p className="document-feedback" role="status">{documentMessage}</p>}
+          <div className="documents-security"><Icon name="lock" size={14} /> Viewers can access only documents currently shared with them. Revocation blocks their next request.</div>
+        </section> : user.role === 'VIEWER' ? <section className="documents-card" aria-labelledby="documents-title"><div className="documents-heading"><div><div className="section-kicker">SHARED FILES</div><h2 id="documents-title">Documents shared with you</h2><p>Only files an Owner has granted to your account appear here.</p></div><span className="status-pill status-active"><span /> Viewer workspace</span></div><div className="documents-list">{documents.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>No documents have been shared with you yet.</span></div> : documents.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB · {document.canEdit ? 'EDIT access' : 'READ access'}</span></div><a className="download-link" href={`/api/documents/${document.id}/download`}><Icon name="download" size={17} /><span>Download</span></a></article>)}</div></section> : <section className="member-welcome"><div className="member-icon"><Icon name="shield" size={27} /></div><div><div className="section-kicker">YOUR ACCOUNT</div><h2>You’re signed in and ready.</h2><p>Your <strong>{roleName}</strong> account is active.</p><div className="member-status"><span className="status-pill status-active"><span /> Account active</span><span className="member-email">{user.email}</span></div></div></section>}
 
         <footer className="page-footer"><span>TRUSTVAULT <span className="footer-dot">·</span> PRIVATE DOCUMENT SHARING</span><span>SESSION-PROTECTED WORKSPACE</span></footer>
       </div>
