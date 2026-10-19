@@ -36,7 +36,7 @@ The initial project foundation was drafted in the Codex session on 2026-10-18. T
 **Output:** Created a document workflow for owners: upload validated PDFs, list owned files, and download only after a server-side ownership check. Added private local storage, generated opaque keys, document audit events, UI integration, API docs, threat notes, and focused service tests.
 **Issue found or verification performed:** Repository inspection showed the document tables existed, but no document endpoints or owner-facing upload/list/download flow existed. Code review found that successful events should share the database transaction while denied events must survive the request rollback; the audit writer now has separate transactional paths for those outcomes. The user's Maven run then found two test methods missing declared `IOException`; both now declare `throws Exception`. A local rerun attempt could not start Maven (`Access is denied`). Git push was attempted but failed because the Git credential helper could not start, so the commit remains local.
 **Correction and evidence:** `npm run build` passed after the Owner workspace integration (Vite 8.3.4; 15 modules transformed). `git diff --check` passed before the checked-exception fix. The user's initial backend test run identified the compile error, which is fixed in source. The corrected backend suite has not yet been rerun, so its result remains unverified. The added tests cover invalid PDF signature rejection, successful upload summary, and cross-owner download denial before storage read.
-**Commit:** `7cb23c6` (local; corrected backend tests still need a rerun).
+**Commit:** `d9d26f0` (local; corrected backend tests still need a rerun).
 
 ## 2026-10-18 — MVP foundation and authentication slice
 
