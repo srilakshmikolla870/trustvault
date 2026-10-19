@@ -53,6 +53,15 @@ The initial project foundation was drafted in the Codex session on 2026-10-18. T
 
 **Administrator navigation:** Based on the user's request, separated Overview summary cards and the Accounts directory into distinct sidebar pages. The URL hash and browser navigation keep the selected page in sync. `npm run build` passed. Commit: `55a5f6b` (local UI change; prompt log update follows).
 
+## 2026-10-19 — Interactive admin overview and return navigation
+
+**Tool:** Codex coding assistant
+**Prompt or fair summary:** Make the Viewers summary open the matching account list, clarify the purpose of the organization and access sidebar elements, and add a back arrow to return to Overview.
+**Output:** Made each overview summary card open the account directory with a matching role/status filter, added a status filter, clarified the current workspace and access protection text, and added a keyboard-accessible “Back to overview” button.
+**Issue found or verification performed:** The organization selector and “Access matters” panel looked interactive but had no action. This project currently exposes one workspace only, so the label is now presented as workspace context; the access panel now explains the implemented Owner/Viewer policy and Administrator restriction.
+**Correction and evidence:** `npm run build` passed with Vite 8.3.4 (15 modules transformed); `git diff --check` passed. Manual browser interaction has not been re-verified in this turn.
+**Commit:** `22fac47` (local; push result to be recorded after the network attempt).
+
 ## 2026-10-18 — MVP foundation and authentication slice
 
 **Tool:** Codex coding assistant
