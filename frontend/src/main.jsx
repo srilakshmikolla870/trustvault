@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './style.css';
 
@@ -44,6 +44,7 @@ function App() {
   const [documentBusy, setDocumentBusy] = useState(false);
   const [documentMessage, setDocumentMessage] = useState('');
   const [documentForm, setDocumentForm] = useState({ title: '', category: '', file: null });
+  const documentFileInput = useRef(null);
   const [newUser, setNewUser] = useState({ email: '', displayName: '', role: 'OWNER', password: '' });
 
   async function refreshCsrf() {
@@ -165,7 +166,7 @@ function App() {
       if (!response.ok) throw new Error(result.error || 'Document upload failed.');
       setDocuments(current => [result, ...current]);
       setDocumentForm({ title: '', category: '', file: null });
-      event.currentTarget.reset();
+      if (documentFileInput.current) documentFileInput.current.value = '';
       setDocumentMessage('PDF uploaded to your private workspace.');
     } catch (error) { setDocumentMessage(error.message); }
     finally { setDocumentBusy(false); }
@@ -281,7 +282,7 @@ function App() {
           <form className="document-upload-form" onSubmit={uploadDocument}>
             <div className="field"><label htmlFor="document-title">Document title</label><input id="document-title" value={documentForm.title} onChange={e => setDocumentForm({ ...documentForm, title: e.target.value })} required maxLength="200" placeholder="e.g. Project proposal" /></div>
             <div className="field"><label htmlFor="document-category">Category</label><input id="document-category" value={documentForm.category} onChange={e => setDocumentForm({ ...documentForm, category: e.target.value })} required maxLength="80" placeholder="e.g. Business" /></div>
-            <div className="field document-file-field"><label htmlFor="document-file">PDF file <span>Up to 10 MB</span></label><input id="document-file" type="file" accept="application/pdf,.pdf" onChange={e => setDocumentForm({ ...documentForm, file: e.target.files?.[0] || null })} required /></div>
+            <div className="field document-file-field"><label htmlFor="document-file">PDF file <span>Up to 10 MB</span></label><input ref={documentFileInput} id="document-file" type="file" accept="application/pdf,.pdf" onChange={e => setDocumentForm({ ...documentForm, file: e.target.files?.[0] || null })} required /></div>
             <button className="primary-button document-submit" type="submit" disabled={documentBusy}>{documentBusy ? <><span className="spinner" /> Uploading…</> : <><Icon name="plus" size={16} /> Upload PDF</>}</button>
           </form>
           {documentMessage && <p className={`document-feedback ${documentMessage.startsWith('PDF uploaded') ? 'success' : ''}`} role="status">{documentMessage}</p>}

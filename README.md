@@ -36,8 +36,9 @@ This repository contains the MVP foundation, authentication, account administrat
 - On 2026-10-18, the user ran the backend unit suite: 6 tests passed, 0 failures, 0 errors. These were the authentication/current-account tests before user administration tests were added.
 - On 2026-10-19, the user's local log showed PostgreSQL 16.15 connected, Flyway migration V1 validated, Hibernate initialized, and Tomcat started. A later startup attempt failed during bootstrap-admin validation; the current successful browser health/login check is not yet recorded.
 - `npm run build` passed after the account-administration UI changes (Vite transformed 15 modules and emitted the production bundle).
-- On 2026-10-19, the user ran `mvn test`: 14 tests passed, with 0 failures, 0 errors, and 0 skipped. This includes the three initial document-service tests and the authentication/account-administration service tests.
+- On 2026-10-19, the user ran `mvn test`: 14 tests passed, with 0 failures, 0 errors, and 0 skipped. This includes the three initial document-service tests and the authentication/account-administration service tests. A later application startup exposed a Hibernate/PostgreSQL `CHAR(64)` mapping mismatch; the Java mapping has been corrected, but the tests and application startup need to be rerun after that fix.
 - The frontend production build passed after the Owner PDF upload/list/download UI was added. Manual HTTP checks for the new document endpoints and database-backed integration tests remain pending.
+- A later user test exposed a frontend form reset error after upload; the file input now clears through a React ref. `npm run build` passed after that fix. Confirm the form behavior in the refreshed browser after the backend starts successfully.
 
 Run backend tests from `backend` with `mvn test`. Run the frontend production build from `frontend` with `npm run build`.
 

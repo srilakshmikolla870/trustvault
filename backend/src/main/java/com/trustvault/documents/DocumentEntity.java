@@ -7,6 +7,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "documents")
@@ -18,7 +20,8 @@ public class DocumentEntity {
     @Column(name = "original_filename", nullable = false, length = 255) private String originalFilename;
     @Column(name = "content_type", nullable = false, length = 150) private String contentType;
     @Column(name = "size_bytes", nullable = false) private long sizeBytes;
-    @Column(name = "checksum_sha256", nullable = false, columnDefinition = "char(64)") private String checksumSha256;
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "checksum_sha256", nullable = false, length = 64) private String checksumSha256;
     @Column(name = "storage_key", nullable = false, length = 128, unique = true) private String storageKey;
     @Column(nullable = false, length = 20) private String status;
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false) private Instant createdAt;
