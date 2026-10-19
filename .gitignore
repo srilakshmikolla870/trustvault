@@ -8,3 +8,5 @@ dist/
 .idea/
 .vscode/
 coverage/
+var/private-documents/
+backend/var/private-documents/

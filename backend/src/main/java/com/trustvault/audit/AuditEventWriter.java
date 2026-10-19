@@ -2,6 +2,8 @@ package com.trustvault.audit;
 
 import java.util.UUID;
 
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +43,25 @@ public class AuditEventWriter {
                         'DENIED', ?, ?, '{}'::jsonb)
                 """,
                 UUID.randomUUID(), actorId, reason, UUID.randomUUID().toString());
+    }
+
+    public void recordDocumentEvent(UUID actorId, UUID documentId, String action, String outcome, String reason) {
+        insertDocumentEvent(actorId, documentId, action, outcome, reason);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordIndependentDocumentEvent(UUID actorId, UUID documentId, String action, String outcome, String reason) {
+        insertDocumentEvent(actorId, documentId, action, outcome, reason);
+    }
+
+    private void insertDocumentEvent(UUID actorId, UUID documentId, String action, String outcome, String reason) {
+        jdbc.update("""
+                INSERT INTO audit_events
+                    (id, occurred_at, actor_user_id, action, target_type, target_id,
+                     outcome, reason_code, request_id, metadata)
+                VALUES (?, CURRENT_TIMESTAMP, ?, ?, 'DOCUMENT', ?, ?, ?, ?, '{}'::jsonb)
+                """,
+                UUID.randomUUID(), actorId, action, documentId, outcome, reason, UUID.randomUUID().toString());
     }
 
     private void recordAuthentication(String action, UUID actorId, boolean allowed, String reason) {

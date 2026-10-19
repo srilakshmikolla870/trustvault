@@ -14,6 +14,8 @@ const iconPaths = {
   eyeOff: <><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8" /><path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a15.8 15.8 0 0 1-3.1 4.1M6.2 6.2C3.4 8.1 2 12 2 12s3.5 7 10 7a10.9 10.9 0 0 0 3-.4" /></>,
   close: <><path d="m18 6-12 12M6 6l12 12" /></>,
   arrow: <><path d="M5 12h14M13 6l6 6-6 6" /></>,
+  file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h8" /></>,
+  download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5M12 15V3" /></>,
 };
 
 function Icon({ name, size = 18, className = '' }) {
@@ -38,6 +40,10 @@ function App() {
   const [createOpen, setCreateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  const [documents, setDocuments] = useState([]);
+  const [documentBusy, setDocumentBusy] = useState(false);
+  const [documentMessage, setDocumentMessage] = useState('');
+  const [documentForm, setDocumentForm] = useState({ title: '', category: '', file: null });
   const [newUser, setNewUser] = useState({ email: '', displayName: '', role: 'OWNER', password: '' });
 
   async function refreshCsrf() {
@@ -77,6 +83,19 @@ function App() {
       .then(accounts => { if (active) setAdminUsers(accounts); })
       .catch(error => { if (active) setAdminMessage(error.message); })
       .finally(() => { if (active) setAdminLoading(false); });
+    return () => { active = false; };
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.role !== 'OWNER') return;
+    let active = true;
+    fetch('/api/documents')
+      .then(async response => {
+        if (!response.ok) throw new Error('Could not load your documents. Try refreshing the page.');
+        return response.json();
+      })
+      .then(items => { if (active) setDocuments(items); })
+      .catch(error => { if (active) setDocumentMessage(error.message); });
     return () => { active = false; };
   }, [user]);
 
@@ -129,6 +148,27 @@ function App() {
       setAdminMessage(`${result.email} is now ${result.active ? 'active' : 'deactivated'}.`);
     } catch (error) { setAdminMessage(error.message); }
     finally { setBusy(false); }
+  }
+
+  async function uploadDocument(event) {
+    event.preventDefault();
+    if (!documentForm.file) { setDocumentMessage('Choose a PDF file to upload.'); return; }
+    setDocumentBusy(true); setDocumentMessage('');
+    try {
+      const token = csrf || await refreshCsrf();
+      const body = new FormData();
+      body.set('title', documentForm.title);
+      body.set('category', documentForm.category);
+      body.set('file', documentForm.file);
+      const response = await fetch('/api/documents', { method: 'POST', headers: { 'X-CSRF-TOKEN': token }, body });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Document upload failed.');
+      setDocuments(current => [result, ...current]);
+      setDocumentForm({ title: '', category: '', file: null });
+      event.currentTarget.reset();
+      setDocumentMessage('PDF uploaded to your private workspace.');
+    } catch (error) { setDocumentMessage(error.message); }
+    finally { setDocumentBusy(false); }
   }
 
   async function signIn(event) {
@@ -236,7 +276,18 @@ function App() {
             </tbody></table></div>
             <div className="directory-footer"><span>Showing <strong>{filteredUsers.length}</strong> of <strong>{adminUsers.length}</strong> accounts</span><span className="directory-secure"><Icon name="lock" size={13} /> Account controls are server-authorized</span></div>
           </section>
-        </> : <section className="member-welcome"><div className="member-icon"><Icon name="shield" size={27} /></div><div><div className="section-kicker">YOUR ACCOUNT</div><h2>You’re signed in and ready.</h2><p>Your <strong>{roleName}</strong> account is active. Document browsing and sharing will appear here when those features are available.</p><div className="member-status"><span className="status-pill status-active"><span /> Account active</span><span className="member-email">{user.email}</span></div></div></section>}
+        </> : user.role === 'OWNER' ? <section className="documents-card" aria-labelledby="documents-title">
+          <div className="documents-heading"><div><div className="section-kicker">PRIVATE FILES</div><h2 id="documents-title">Your documents</h2><p>Upload and access PDFs in your private workspace.</p></div><span className="status-pill status-active"><span /> Owner workspace</span></div>
+          <form className="document-upload-form" onSubmit={uploadDocument}>
+            <div className="field"><label htmlFor="document-title">Document title</label><input id="document-title" value={documentForm.title} onChange={e => setDocumentForm({ ...documentForm, title: e.target.value })} required maxLength="200" placeholder="e.g. Project proposal" /></div>
+            <div className="field"><label htmlFor="document-category">Category</label><input id="document-category" value={documentForm.category} onChange={e => setDocumentForm({ ...documentForm, category: e.target.value })} required maxLength="80" placeholder="e.g. Business" /></div>
+            <div className="field document-file-field"><label htmlFor="document-file">PDF file <span>Up to 10 MB</span></label><input id="document-file" type="file" accept="application/pdf,.pdf" onChange={e => setDocumentForm({ ...documentForm, file: e.target.files?.[0] || null })} required /></div>
+            <button className="primary-button document-submit" type="submit" disabled={documentBusy}>{documentBusy ? <><span className="spinner" /> Uploading…</> : <><Icon name="plus" size={16} /> Upload PDF</>}</button>
+          </form>
+          {documentMessage && <p className={`document-feedback ${documentMessage.startsWith('PDF uploaded') ? 'success' : ''}`} role="status">{documentMessage}</p>}
+          <div className="documents-list">{documents.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>No documents uploaded yet.</span></div> : documents.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB</span></div><a className="download-link" href={`/api/documents/${document.id}/download`} aria-label={`Download ${document.title}`}><Icon name="download" size={17} /><span>Download</span></a></article>)}</div>
+          <div className="documents-security"><Icon name="lock" size={14} /> Only your account can access these files right now. Sharing is coming in the next feature.</div>
+        </section> : <section className="member-welcome"><div className="member-icon"><Icon name="shield" size={27} /></div><div><div className="section-kicker">YOUR ACCOUNT</div><h2>You’re signed in and ready.</h2><p>Your <strong>{roleName}</strong> account is active. A document appears here when an Owner grants you access.</p><div className="member-status"><span className="status-pill status-active"><span /> Account active</span><span className="member-email">{user.email}</span></div></div></section>}
 
         <footer className="page-footer"><span>TRUSTVAULT <span className="footer-dot">·</span> PRIVATE DOCUMENT SHARING</span><span>SESSION-PROTECTED WORKSPACE</span></footer>
       </div>

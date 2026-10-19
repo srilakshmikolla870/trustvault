@@ -27,7 +27,16 @@ The initial project foundation was drafted in the Codex session on 2026-10-18. T
 **Output:** Added administrator-only APIs and a React panel to list users, create owner/viewer accounts, and activate/deactivate non-admin accounts, with audit writes.
 **Issue found or verification performed:** Repository inspection showed there was no way to provision owners or viewers, blocking realistic document-sharing tests. The API route requires the server-side administrator role; the service rejects administrator-role creation and self-deactivation; password hashes are omitted from response records.
 **Correction and evidence:** Implementation and focused service tests are present in `backend/src/main/java/com/trustvault/users/UserAdminService.java`, `UserAdminController.java`, `backend/src/test/java/com/trustvault/users/UserAdminServiceTest.java`, and `frontend/src/main.jsx`. `npm run build` passed with Vite 8.3.4 (15 modules transformed). Backend tests are pending; no result is claimed for them.
-**Commit:** Pending; no commit has been created.
+**Commit:** `2f66413` (local commit; GitHub push is pending because the Git credential helper failed to start in this environment).
+
+## 2026-10-19 — Owner PDF upload and private download workflow
+
+**Tool:** Codex coding assistant
+**Prompt or fair summary:** Commit and push the current work, then start developing the next MVP feature.
+**Output:** Created a document workflow for owners: upload validated PDFs, list owned files, and download only after a server-side ownership check. Added private local storage, generated opaque keys, document audit events, UI integration, API docs, threat notes, and focused service tests.
+**Issue found or verification performed:** Repository inspection showed the document tables existed, but no document endpoints or owner-facing upload/list/download flow existed. Code review found that successful events should share the database transaction while denied events must survive the request rollback; the audit writer now has separate transactional paths for those outcomes. The user's Maven run then found two test methods missing declared `IOException`; both now declare `throws Exception`. A local rerun attempt could not start Maven (`Access is denied`). Git push was attempted but failed because the Git credential helper could not start, so the commit remains local.
+**Correction and evidence:** `npm run build` passed after the Owner workspace integration (Vite 8.3.4; 15 modules transformed). `git diff --check` passed before the checked-exception fix. The user's initial backend test run identified the compile error, which is fixed in source. The corrected backend suite has not yet been rerun, so its result remains unverified. The added tests cover invalid PDF signature rejection, successful upload summary, and cross-owner download denial before storage read.
+**Commit:** `7cb23c6` (local; corrected backend tests still need a rerun).
 
 ## 2026-10-18 — MVP foundation and authentication slice
 

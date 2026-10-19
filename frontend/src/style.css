@@ -194,6 +194,30 @@ a { color: inherit; }
 .directory-footer strong { color: #677a70; font-weight: 700; }
 .directory-secure { display: inline-flex; align-items: center; gap: 5px; color: #82978b; }
 .member-welcome { display: flex; align-items: flex-start; gap: 18px; min-height: 192px; padding: 28px; border: 1px solid #e5ebe7; border-radius: 12px; background: #fff; box-shadow: 0 5px 19px rgba(24, 57, 45, .035); }
+.documents-card { overflow: hidden; border: 1px solid #e5ebe7; border-radius: 12px; background: #fff; box-shadow: 0 5px 19px rgba(24, 57, 45, .035); }
+.documents-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 23px 25px 19px; }
+.documents-heading h2 { margin: 5px 0 4px; color: #234239; font-size: 18px; letter-spacing: -.4px; }
+.documents-heading p { margin: 0; color: #8a9992; font-size: 10px; }
+.document-upload-form { display: grid; grid-template-columns: 1.2fr .8fr 1.3fr auto; align-items: end; gap: 11px; padding: 16px 25px; border-top: 1px solid #edf1ee; border-bottom: 1px solid #edf1ee; background: #fbfcfb; }
+.document-upload-form .field { display: grid; gap: 6px; min-width: 0; }
+.document-upload-form .field label { color: #526b60; font-size: 9px; font-weight: 700; }
+.document-upload-form .field input:not([type=file]) { width: 100%; min-height: 36px; padding: 0 9px; color: #314c41; border: 1px solid #e1e9e3; border-radius: 6px; background: #fff; font-size: 9px; }
+.document-file-field label span { color: #9ba8a1; font-weight: 400; }
+.document-upload-form .field input[type=file] { width: 100%; max-width: 240px; color: #809087; font-size: 8px; }
+.document-submit { min-height: 36px; padding: 0 11px; font-size: 9px; white-space: nowrap; }
+.document-feedback { margin: 13px 24px 0; padding: 9px 11px; color: #95413d; border: 1px solid #f2d8d3; border-radius: 7px; background: #fff8f6; font-size: 9px; }
+.document-feedback.success { color: #317252; border-color: #d8ebde; background: #f1f8f3; }
+.documents-list { padding: 0 24px; }
+.documents-empty { display: flex; align-items: center; gap: 9px; min-height: 88px; color: #9aa79f; font-size: 10px; }
+.documents-row, .document-row { display: flex; align-items: center; gap: 12px; min-height: 65px; border-bottom: 1px solid #f0f3f1; }
+.document-row:last-child { border-bottom: 0; }
+.document-symbol { display: grid; place-items: center; width: 34px; height: 34px; flex: none; color: #47805f; border: 1px solid #e0eee5; border-radius: 9px; background: #f2f8f3; }
+.document-info { min-width: 0; display: grid; gap: 4px; flex: 1; }
+.document-info strong { overflow: hidden; color: #38594a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.document-info span { overflow: hidden; color: #97a49d; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.download-link { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 7px 9px; color: #367756; border: 1px solid #deebe1; border-radius: 6px; background: #fff; font-size: 9px; text-decoration: none; }
+.download-link:hover { background: #f3faf4; }
+.documents-security { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 24px; color: #8a9a91; border-top: 1px solid #edf1ee; background: #fcfdfc; font-size: 8px; }
 .member-icon { width: 46px; height: 46px; display: grid; flex: none; place-items: center; color: #347d5c; border: 1px solid #dceee1; border-radius: 14px; background: #f1f8f3; }
 .member-welcome h2 { margin-top: 9px; font-size: 18px; }
 .member-welcome p { max-width: 540px; font-size: 11px; }
@@ -270,6 +294,12 @@ a { color: inherit; }
   .directory-footer { padding: 0 16px; }
   .directory-secure { display: none; }
   .member-welcome { padding: 20px; }
+  .documents-heading { align-items: flex-start; flex-direction: column; padding: 18px 16px; }
+  .document-upload-form { grid-template-columns: 1fr; padding: 15px 16px; }
+  .document-upload-form .field input[type=file] { max-width: 100%; }
+  .document-submit { justify-content: center; }
+  .documents-list { padding: 0 16px; }
+  .documents-security { padding: 0 16px; }
 }
 @media (max-width: 480px) {
   .story-assurances { flex-direction: column; gap: 15px; }

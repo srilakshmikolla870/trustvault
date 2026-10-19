@@ -4,7 +4,7 @@ Secure document sharing for the Snovasys Fresher Hiring Challenge 2026.
 
 ## Current status
 
-This repository contains the MVP foundation, authentication, and the first account-administration slice. Health, login/logout, current-user and CSRF-token endpoints, environment-based administrator bootstrap, per-request account refresh, authentication audit writes, administrator-only owner/viewer provisioning, and user activation/deactivation are implemented in source. Document authorization, uploads, grants, document activity, complete audit coverage, and deployment are not implemented yet.
+This repository contains the MVP foundation, authentication, account administration, and the first document slice. Owners can upload, list, and download their own validated PDFs from private local storage. Viewer grants, metadata editing, search, soft deletion, document activity views, database-level audit immutability, and deployment are not implemented yet.
 
 ## Stack
 
@@ -13,6 +13,7 @@ This repository contains the MVP foundation, authentication, and the first accou
 - PostgreSQL with Flyway migrations
 - React and Vite
 - Docker Compose for local PostgreSQL
+- Private local filesystem storage for development (configured with `TRUSTVAULT_STORAGE_DIR`)
 
 ## Prerequisites
 
@@ -37,7 +38,7 @@ This repository contains the MVP foundation, authentication, and the first accou
 - `npm run build` passed after the account-administration UI changes (Vite transformed 15 modules and emitted the production bundle).
 - The account-administration backend tests have not been run. The earlier six backend tests passed before this feature was added; do not treat the new API controls as runtime-verified until the updated suite and HTTP checks pass.
 
-Run backend tests from `backend` with `mvn test`. Run the frontend production build from `frontend` with `npm run build`.
+Run backend tests from `backend` with `mvn test`. Run the frontend production build from `frontend` with `npm run build`. The new document tests have not yet been successfully run in this environment.
 
 ## Security invariants
 
@@ -57,3 +58,9 @@ Spring Security verifies BCrypt password hashes and stores authentication in a s
 ## Administrator account management
 
 After signing in as the bootstrap administrator, the React interface can create owner and viewer accounts and activate/deactivate those accounts. Only the server-authorized administrator route can do this. Account creation accepts a one-time password and stores only its BCrypt hash; the account listing never returns password fields. An administrator cannot deactivate their own account. New accounts are for local synthetic testing; do not use real confidential documents or production passwords in this MVP.
+
+## Initial document workflow
+
+Sign in with an OWNER account and submit a PDF with a title and category. Uploads are limited to 10 MiB and validated by file extension, MIME type, and PDF header signature. Bytes are stored outside the web root with a generated opaque name. The owner can list and download their own active documents. The download endpoint checks ownership on every request, uses attachment delivery, and disables caching. Set `TRUSTVAULT_STORAGE_DIR` to a private persistent directory before running outside local development. Do not place this directory under a publicly served frontend path.
+
+This initial slice does not yet implement sharing grants, Viewer access, editing metadata, search, or soft deletion. A Viewer currently sees an empty document list and cannot download documents.

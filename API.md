@@ -1,6 +1,6 @@
 # API
 
-No document-management API endpoints are implemented yet. Current health, authentication, and administrator account routes are:
+Current health, authentication, administrator account, and initial document routes are:
 
 | Method | Path | Purpose | Access | Audit | Status |
 |---|---|---|---|---|---|
@@ -12,10 +12,23 @@ No document-management API endpoints are implemented yet. Current health, authen
 | GET | `/api/admin/users` | List account summaries | Authenticated administrator only | None | Implemented; manual endpoint verification pending |
 | POST | `/api/admin/users` | Create an owner or viewer | Authenticated administrator only; session CSRF token required | `ADMIN_USER_CREATE` allowed event | Implemented; automated service tests added, runtime endpoint verification pending |
 | PATCH | `/api/admin/users/{userId}/status` | Activate or deactivate an owner/viewer | Authenticated administrator only; session CSRF token required; cannot change own or administrator status | `ADMIN_USER_STATUS` allowed event | Implemented; automated service tests added, runtime endpoint verification pending |
+| GET | `/api/documents` | List the signed-in owner's active documents | Authenticated; owners see their own documents; other roles receive an empty list | `DOCUMENT_LIST` allowed/denied | Implemented; automated verification pending |
+| POST | `/api/documents` | Upload an owned PDF | Authenticated OWNER only; session CSRF token required; validates title, category, size, extension, claimed MIME, and PDF signature | `DOCUMENT_UPLOAD` allowed/denied/failed | Implemented; automated verification pending |
+| GET | `/api/documents/{documentId}/download` | Download an active owned PDF | Authenticated OWNER; owner ID and active state are checked on every request; non-owner and missing IDs both return 404 | `DOCUMENT_DOWNLOAD` allowed/denied/failed | Implemented; automated verification pending |
 
 Login accepts `application/x-www-form-urlencoded` fields `email` and `password`; failures use the same generic message. `/api/auth/csrf` returns the session-bound token. Include it as `X-CSRF-TOKEN` on POST requests. Obtain a fresh token after login and logout because Spring Security clears the previous token when authentication changes.
 
-Before adding a document route, document its authentication, required role/grant, exact policy enforcement point, validation, success/denial behavior, audit event, and tests here.
+The initial document slice intentionally supports owners' own documents only. Viewer grants, metadata editing, search, soft deletion, and admin audit views are not implemented yet.
+
+## Initial document endpoints
+
+`POST /api/documents` is restricted in the security filter chain to `ROLE_OWNER`, then the service rechecks the database account is active and has OWNER role. It accepts `multipart/form-data` fields `title`, `category`, and `file`. Files must be non-empty PDFs no larger than 10 MiB; filename extension, claimed `application/pdf` MIME type, and `%PDF-` signature are checked. The server stores bytes under a generated UUID key in the configured private local directory (`TRUSTVAULT_STORAGE_DIR`, default `./var/private-documents`). The returned summary excludes checksum and storage key. Request multipart limits are configured at 10 MiB per file and 11 MiB per request.
+
+`GET /api/documents` scopes the query to the authenticated owner's ID and active status. Other roles currently receive an empty list until grant-backed listing is implemented.
+
+`GET /api/documents/{documentId}/download` loads an active record, checks the current authenticated account and owner ID, then reads private bytes. It returns an attachment with `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. A non-owner and a nonexistent ID share the same 404 response. No public or signed file URLs are issued.
+
+Automated tests cover invalid PDF signature rejection, an upload's safe summary, and denial of another owner's download before storage bytes are read. The test run is pending in this environment. Local filesystem permissions and deployed storage protections are not yet verified.
 
 ## Administrator account endpoints
 
