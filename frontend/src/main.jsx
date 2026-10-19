@@ -27,6 +27,7 @@ function initials(name = '') {
 }
 
 function App() {
+  const [adminPage, setAdminPage] = useState(() => window.location.hash === '#accounts' ? 'accounts' : 'overview');
   const [csrf, setCsrf] = useState('');
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
@@ -50,6 +51,12 @@ function App() {
   const [documentForm, setDocumentForm] = useState({ title: '', category: '', file: null });
   const documentFileInput = useRef(null);
   const [newUser, setNewUser] = useState({ email: '', displayName: '', role: 'OWNER', password: '' });
+
+  useEffect(() => {
+    const syncPageFromHash = () => setAdminPage(window.location.hash === '#accounts' ? 'accounts' : 'overview');
+    window.addEventListener('hashchange', syncPageFromHash);
+    return () => window.removeEventListener('hashchange', syncPageFromHash);
+  }, []);
 
   async function refreshCsrf() {
     const response = await fetch('/api/auth/csrf');
@@ -299,26 +306,26 @@ function App() {
       <a className="brand brand-light sidebar-brand" href="#overview"><span className="brand-mark"><Icon name="shield" size={21} /></span><span>trustvault<span className="brand-period">.</span></span></a>
       <div className="workspace-switch"><div className="workspace-avatar"><Icon name="shield" size={16} /></div><div><span className="workspace-overline">WORKSPACE</span><strong>My organization</strong></div><span className="workspace-chevron">⌄</span></div>
       <div className="nav-section-label">WORKSPACE</div>
-      <nav className="side-nav" aria-label="Main navigation"><a className="nav-link active" href="#overview"><Icon name="grid" /><span>Overview</span><span className="nav-indicator" /></a>{isAdmin && <a className="nav-link" href="#accounts"><Icon name="users" /><span>Accounts</span><span className="nav-count">{accountCounts.total}</span></a>}</nav>
+      <nav className="side-nav" aria-label="Main navigation"><a className={`nav-link ${!isAdmin || adminPage === 'overview' ? 'active' : ''}`} href="#overview" onClick={() => setAdminPage('overview')} aria-current={!isAdmin || adminPage === 'overview' ? 'page' : undefined}><Icon name="grid" /><span>Overview</span>{(!isAdmin || adminPage === 'overview') && <span className="nav-indicator" />}</a>{isAdmin && <a className={`nav-link ${adminPage === 'accounts' ? 'active' : ''}`} href="#accounts" onClick={() => setAdminPage('accounts')} aria-current={adminPage === 'accounts' ? 'page' : undefined}><Icon name="users" /><span>Accounts</span><span className="nav-count">{accountCounts.total}</span>{adminPage === 'accounts' && <span className="nav-indicator" />}</a>}</nav>
       <div className="sidebar-note"><span className="note-mark"><Icon name="lock" size={15} /></span><strong>Access matters</strong><p>Only authorized accounts can enter this workspace.</p></div>
       <div className="sidebar-bottom"><div className="online-dot" /> <span>Workspace available</span><button type="button" className="sidebar-logout" onClick={signOut} disabled={busy} aria-label="Sign out"><Icon name="logout" size={17} /></button></div>
     </aside>
 
     <main className="main-area" id="overview">
-      <header className="topbar"><div className="breadcrumb"><span>Workspace</span><span className="crumb-slash">/</span><strong>Overview</strong></div><div className="topbar-actions"><div className="topbar-date"><span className="date-dot" /> PRIVATE WORKSPACE</div><div className="topbar-divider" /><div className="user-menu"><div className="avatar">{initials(user.displayName)}</div><div className="user-menu-text"><strong>{user.displayName}</strong><span>{roleName}</span></div><button type="button" className="topbar-signout" onClick={signOut} disabled={busy}><Icon name="logout" size={16} /><span>Sign out</span></button></div></div></header>
+      <header className="topbar"><div className="breadcrumb"><span>Workspace</span><span className="crumb-slash">/</span><strong>{isAdmin && adminPage === 'accounts' ? 'Accounts' : 'Overview'}</strong></div><div className="topbar-actions"><div className="topbar-date"><span className="date-dot" /> PRIVATE WORKSPACE</div><div className="topbar-divider" /><div className="user-menu"><div className="avatar">{initials(user.displayName)}</div><div className="user-menu-text"><strong>{user.displayName}</strong><span>{roleName}</span></div><button type="button" className="topbar-signout" onClick={signOut} disabled={busy}><Icon name="logout" size={16} /><span>Sign out</span></button></div></div></header>
 
       <div className="content-wrap">
-        <section className="welcome-row"><div><div className="page-eyebrow"><span className="eyebrow-line" /> TRUSTVAULT WORKSPACE</div><h1>{isAdmin ? 'Good to see you,' : 'Welcome to your workspace,'}<br /><span>{user.displayName.split(' ')[0]}.</span></h1><p>{isAdmin ? 'A clear view of the people who belong here.' : 'Your account is ready. Your document workspace is being prepared.'}</p></div><div className="welcome-art" aria-hidden="true"><div className="art-ring ring-a" /><div className="art-ring ring-b" /><div className="art-shield"><Icon name="shield" size={36} /></div><span className="art-spark spark-a" /><span className="art-spark spark-b" /></div></section>
+        {isAdmin && adminPage === 'accounts' ? <section className="admin-page-heading"><div className="page-eyebrow"><span className="eyebrow-line" /> PEOPLE & ACCESS</div><h1>Accounts</h1><p>View and manage the people in your TrustVault workspace.</p></section> : <section className="welcome-row"><div><div className="page-eyebrow"><span className="eyebrow-line" /> TRUSTVAULT WORKSPACE</div><h1>{isAdmin ? 'Good to see you,' : 'Welcome to your workspace,'}<br /><span>{user.displayName.split(' ')[0]}.</span></h1><p>{isAdmin ? 'A clear view of the people who belong here.' : 'Your account is ready. Your document workspace is being prepared.'}</p></div><div className="welcome-art" aria-hidden="true"><div className="art-ring ring-a" /><div className="art-ring ring-b" /><div className="art-shield"><Icon name="shield" size={36} /></div><span className="art-spark spark-a" /><span className="art-spark spark-b" /></div></section>}
 
         {isAdmin ? <>
-          <section className="metrics-grid" aria-label="Account summary">
+          {adminPage === 'overview' && <section className="metrics-grid" aria-label="Account summary">
             <article className="metric-card metric-primary"><div className="metric-top"><span>Total team accounts</span><span className="metric-icon"><Icon name="users" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.total.toString().padStart(2, '0')}</div><div className="metric-foot"><span className="metric-pip" /> Owners and viewers</div></article>
             <article className="metric-card"><div className="metric-top"><span>Owners</span><span className="metric-icon metric-icon-blue"><Icon name="shield" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.owners.toString().padStart(2, '0')}</div><div className="metric-foot">Manage their own workspace</div></article>
             <article className="metric-card"><div className="metric-top"><span>Viewers</span><span className="metric-icon metric-icon-lilac"><Icon name="eye" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.viewers.toString().padStart(2, '0')}</div><div className="metric-foot">Access is individually granted</div></article>
             <article className="metric-card"><div className="metric-top"><span>Active accounts</span><span className="metric-icon metric-icon-green"><Icon name="lock" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.active.toString().padStart(2, '0')}</div><div className="metric-foot"><span className="metric-pip" /> Ready to sign in</div></article>
-          </section>
+          </section>}
 
-          <section className="accounts-card" id="accounts" aria-labelledby="accounts-title">
+          {adminPage === 'accounts' && <section className="accounts-card" id="accounts" aria-labelledby="accounts-title">
             <div className="section-heading"><div><div className="section-kicker">PEOPLE & ACCESS</div><h2 id="accounts-title">Account directory</h2><p>Manage who can sign in to TrustVault.</p></div><button className="primary-button create-button" type="button" onClick={() => { setAdminMessage(''); setCreateOpen(true); }}><Icon name="plus" size={17} /> Create account</button></div>
             <div className="directory-toolbar"><label className="search-field"><Icon name="search" size={17} /><input type="search" aria-label="Search accounts" placeholder="Search by name or email" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></label><label className="filter-select"><span>Role</span><select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} aria-label="Filter by role"><option value="ALL">All roles</option><option value="ADMINISTRATOR">Administrator</option><option value="OWNER">Owner</option><option value="VIEWER">Viewer</option></select></label></div>
             {adminMessage && <p className={`admin-feedback ${adminMessage.startsWith('Created') || adminMessage.includes('now active') ? 'success' : ''}`} role="status">{adminMessage}</p>}
@@ -326,7 +333,7 @@ function App() {
               {adminLoading ? <tr><td colSpan="4" className="table-message">Loading accounts…</td></tr> : filteredUsers.length === 0 ? <tr><td colSpan="4" className="table-message">{adminUsers.length === 0 ? 'No accounts yet. Create an owner or viewer account to get started.' : 'No accounts match your search.'}</td></tr> : filteredUsers.map(account => <tr key={account.id}><td><div className="account-identity"><div className={`account-avatar ${account.role === 'ADMINISTRATOR' ? 'avatar-admin' : account.role === 'VIEWER' ? 'avatar-viewer' : ''}`}>{initials(account.displayName)}</div><div className="account-name"><strong>{account.displayName}</strong><span>{account.email}</span></div></div></td><td><span className={`role-pill role-${account.role.toLowerCase()}`}>{account.role === 'ADMINISTRATOR' ? 'Administrator' : account.role === 'OWNER' ? 'Owner' : 'Viewer'}</span></td><td><span className={`status-pill ${account.active ? 'status-active' : 'status-inactive'}`}><span />{account.active ? 'Active' : 'Inactive'}</span></td><td className="actions-cell">{account.role !== 'ADMINISTRATOR' ? <button type="button" className={`row-action ${account.active ? 'deactivate-action' : 'activate-action'}`} onClick={() => toggleAccount(account)} disabled={busy}>{account.active ? 'Deactivate' : 'Reactivate'}</button> : <span className="self-label">You</span>}</td></tr>)}
             </tbody></table></div>
             <div className="directory-footer"><span>Showing <strong>{filteredUsers.length}</strong> of <strong>{adminUsers.length}</strong> accounts</span><span className="directory-secure"><Icon name="lock" size={13} /> Account controls are server-authorized</span></div>
-          </section>
+          </section>}
         </> : user.role === 'OWNER' ? <section className="documents-card" aria-labelledby="documents-title">
           <div className="documents-heading"><div><div className="section-kicker">PRIVATE FILES</div><h2 id="documents-title">Your documents</h2><p>Upload, access, and share PDFs in your private workspace.</p></div><span className="status-pill status-active"><span /> Owner workspace</span></div>
           <form className="document-upload-form" onSubmit={uploadDocument}>
