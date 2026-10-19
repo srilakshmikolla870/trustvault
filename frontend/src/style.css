@@ -209,7 +209,7 @@ a { color: inherit; }
 .document-feedback.success { color: #317252; border-color: #d8ebde; background: #f1f8f3; }
 .documents-list { padding: 0 24px; }
 .documents-empty { display: flex; align-items: center; gap: 9px; min-height: 88px; color: #9aa79f; font-size: 10px; }
-.documents-row, .document-row { display: flex; align-items: center; gap: 12px; min-height: 65px; border-bottom: 1px solid #f0f3f1; }
+.documents-row, .document-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 65px; border-bottom: 1px solid #f0f3f1; }
 .document-row:last-child { border-bottom: 0; }
 .document-symbol { display: grid; place-items: center; width: 34px; height: 34px; flex: none; color: #47805f; border: 1px solid #e0eee5; border-radius: 9px; background: #f2f8f3; }
 .document-info { min-width: 0; display: grid; gap: 4px; flex: 1; }
@@ -218,10 +218,11 @@ a { color: inherit; }
 .download-link { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 7px 9px; color: #367756; border: 1px solid #deebe1; border-radius: 6px; background: #fff; font-size: 9px; text-decoration: none; }
 .download-link:hover { background: #f3faf4; }
 .download-link:disabled { opacity: .5; cursor: not-allowed; }
-.share-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; width: 100%; padding: 0 0 11px 46px; }
+.share-controls { display: flex; flex: 1 0 100%; align-items: center; flex-wrap: wrap; gap: 6px; width: 100%; padding: 0 0 11px 46px; }
 .share-controls select { min-height: 29px; max-width: 180px; padding: 0 7px; color: #496457; border: 1px solid #e1e9e3; border-radius: 6px; background: #fff; font-size: 9px; }
 .grant-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 7px; color: #456c55; border: 1px solid #e0eee5; border-radius: 6px; background: #f6faf7; font-size: 9px; }
 .grant-chip button { padding: 0; color: #9b4d45; border: 0; background: transparent; font-size: 8px; cursor: pointer; }
+.share-guidance { margin: 0 24px 12px; color: #8a6d35; font-size: 9px; }
 .documents-security { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 24px; color: #8a9a91; border-top: 1px solid #edf1ee; background: #fcfdfc; font-size: 8px; }
 .member-icon { width: 46px; height: 46px; display: grid; flex: none; place-items: center; color: #347d5c; border: 1px solid #dceee1; border-radius: 14px; background: #f1f8f3; }
 .member-welcome h2 { margin-top: 9px; font-size: 18px; }

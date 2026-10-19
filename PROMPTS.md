@@ -47,6 +47,8 @@ The initial project foundation was drafted in the Codex session on 2026-10-18. T
 **Correction and evidence:** Added the missing import, explicit `List<GrantSummary>` type, and moved Owner test setup into only the tests that use it. The user then ran `mvn test`: 16 tests passed, 0 failures, 0 errors, 0 skipped. These service tests cover current READ grant download and no-current-grant denial; PostgreSQL revocation behavior and HTTP/CSRF checks remain unverified. The initial feature commit is local; GitHub push attempt failed because this session could not resolve GitHub.
 **Commit:** `b02b660` (local; push pending).
 
+**Follow-up from screenshot review:** The Owner screenshot showed document names squeezed out by the share controls, and the Share button disabled with no active Viewer selected. Updated the document row to place sharing controls on a second line and added an explicit empty-viewer message. `npm run build` passed after the change. This improves visibility but does not establish whether this user's backend currently has an active Viewer; manual account/API verification is still needed.
+
 ## 2026-10-18 — MVP foundation and authentication slice
 
 **Tool:** Codex coding assistant
