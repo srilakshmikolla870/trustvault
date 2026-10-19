@@ -51,6 +51,8 @@ The initial project foundation was drafted in the Codex session on 2026-10-18. T
 
 **Second screenshot follow-up:** The Administrator screen showed active Viewer accounts, while the Owner screen received a non-success response from `/api/documents/eligible-viewers`. The screenshots do not expose the HTTP status, so a stale backend process is a likely cause, not yet proven. Updated the frontend to show the status and avoid duplicating the error message. `npm run build` passed. Restart the backend and inspect the displayed status if it persists; direct endpoint response is still unverified.
 
+**Administrator navigation:** Based on the user's request, separated Overview summary cards and the Accounts directory into distinct sidebar pages. The URL hash and browser navigation keep the selected page in sync. `npm run build` passed. Commit: `55a5f6b` (local UI change; prompt log update follows).
+
 ## 2026-10-18 — MVP foundation and authentication slice
 
 **Tool:** Codex coding assistant
