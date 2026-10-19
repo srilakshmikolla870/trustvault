@@ -42,6 +42,7 @@ function App() {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [documents, setDocuments] = useState([]);
   const [eligibleViewers, setEligibleViewers] = useState([]);
+  const [viewerOptionsFailed, setViewerOptionsFailed] = useState(false);
   const [documentGrants, setDocumentGrants] = useState({});
   const [shareSelections, setShareSelections] = useState({});
   const [documentBusy, setDocumentBusy] = useState(false);
@@ -102,17 +103,21 @@ function App() {
         if (!active) return;
         setDocuments(items);
         if (user.role === 'OWNER') {
+          setViewerOptionsFailed(false);
           const [viewersResponse, ...grantResponses] = await Promise.all([
             fetch('/api/documents/eligible-viewers'), ...items.map(item => fetch(`/api/documents/${item.id}/grants`))
           ]);
-          if (!viewersResponse.ok) throw new Error('Could not load active Viewer accounts. Refresh the page and try again.');
+          if (!viewersResponse.ok) {
+            setViewerOptionsFailed(true);
+            throw new Error(`Could not load active Viewer accounts (HTTP ${viewersResponse.status}). Restart the backend, then refresh.`);
+          }
           setEligibleViewers(await viewersResponse.json());
           const map = {};
           for (let index = 0; index < items.length; index++) if (grantResponses[index].ok) map[items[index].id] = await grantResponses[index].json();
           if (active) setDocumentGrants(map);
         }
       })
-      .catch(error => { if (active) setDocumentMessage(error.message); });
+      .catch(error => { if (active) { setViewerOptionsFailed(true); setDocumentMessage(error.message); } });
     return () => { active = false; };
   }, [user]);
 
@@ -332,8 +337,7 @@ function App() {
           </form>
           {documentMessage && <p className={`document-feedback ${documentMessage.startsWith('PDF uploaded') ? 'success' : ''}`} role="status">{documentMessage}</p>}
           <div className="documents-list">{documents.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>No documents uploaded yet.</span></div> : documents.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB</span></div><a className="download-link" href={`/api/documents/${document.id}/download`} aria-label={`Download ${document.title}`}><Icon name="download" size={17} /><span>Download</span></a><div className="share-controls"><select aria-label={`Choose viewer for ${document.title}`} value={shareSelections[document.id]?.userId || ''} onChange={e => setShareSelections(current => ({ ...current, [document.id]: { userId: e.target.value, permission: current[document.id]?.permission || 'READ' } }))}><option value="">{eligibleViewers.length ? 'Select viewer' : 'No active viewers'}</option>{eligibleViewers.map(viewer => <option key={viewer.id} value={viewer.id}>{viewer.displayName}</option>)}</select><select aria-label={`Choose permission for ${document.title}`} value={shareSelections[document.id]?.permission || 'READ'} onChange={e => setShareSelections(current => ({ ...current, [document.id]: { ...current[document.id], permission: e.target.value } }))}><option value="READ">READ</option><option value="EDIT">EDIT</option></select><button className="download-link" type="button" disabled={!shareSelections[document.id]?.userId || documentBusy} onClick={() => changeGrant(document.id, shareSelections[document.id].userId, shareSelections[document.id].permission)}>Share</button>{(documentGrants[document.id] || []).map(grant => <span className="grant-chip" key={grant.userId}>{grant.displayName}: {grant.permission}<button type="button" aria-label={`Revoke ${grant.displayName}`} onClick={() => revokeGrant(document.id, grant)}>Revoke</button></span>)}</div></article>)}</div>
-          {user.role === 'OWNER' && eligibleViewers.length === 0 && <p className="share-guidance">No active Viewer accounts are available. Ask an Administrator to create or reactivate a Viewer account, then refresh this page.</p>}
-          {documentMessage && <p className="document-feedback" role="status">{documentMessage}</p>}
+          {user.role === 'OWNER' && eligibleViewers.length === 0 && !viewerOptionsFailed && <p className="share-guidance">No active Viewer accounts are available. Ask an Administrator to create or reactivate a Viewer account, then refresh this page.</p>}
           <div className="documents-security"><Icon name="lock" size={14} /> Viewers can access only documents currently shared with them. Revocation blocks their next request.</div>
         </section> : user.role === 'VIEWER' ? <section className="documents-card" aria-labelledby="documents-title"><div className="documents-heading"><div><div className="section-kicker">SHARED FILES</div><h2 id="documents-title">Documents shared with you</h2><p>Only files an Owner has granted to your account appear here.</p></div><span className="status-pill status-active"><span /> Viewer workspace</span></div><div className="documents-list">{documents.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>No documents have been shared with you yet.</span></div> : documents.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB · {document.canEdit ? 'EDIT access' : 'READ access'}</span></div><a className="download-link" href={`/api/documents/${document.id}/download`}><Icon name="download" size={17} /><span>Download</span></a></article>)}</div></section> : <section className="member-welcome"><div className="member-icon"><Icon name="shield" size={27} /></div><div><div className="section-kicker">YOUR ACCOUNT</div><h2>You’re signed in and ready.</h2><p>Your <strong>{roleName}</strong> account is active.</p><div className="member-status"><span className="status-pill status-active"><span /> Account active</span><span className="member-email">{user.email}</span></div></div></section>}
 

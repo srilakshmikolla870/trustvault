@@ -49,6 +49,8 @@ The initial project foundation was drafted in the Codex session on 2026-10-18. T
 
 **Follow-up from screenshot review:** The Owner screenshot showed document names squeezed out by the share controls, and the Share button disabled with no active Viewer selected. Updated the document row to place sharing controls on a second line and added an explicit empty-viewer message. `npm run build` passed after the change. This improves visibility but does not establish whether this user's backend currently has an active Viewer; manual account/API verification is still needed.
 
+**Second screenshot follow-up:** The Administrator screen showed active Viewer accounts, while the Owner screen received a non-success response from `/api/documents/eligible-viewers`. The screenshots do not expose the HTTP status, so a stale backend process is a likely cause, not yet proven. Updated the frontend to show the status and avoid duplicating the error message. `npm run build` passed. Restart the backend and inspect the displayed status if it persists; direct endpoint response is still unverified.
+
 ## 2026-10-18 — MVP foundation and authentication slice
 
 **Tool:** Codex coding assistant
