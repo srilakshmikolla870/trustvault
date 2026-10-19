@@ -28,7 +28,7 @@ The initial document slice intentionally supports owners' own documents only. Vi
 
 `GET /api/documents/{documentId}/download` loads an active record, checks the current authenticated account and owner ID, then reads private bytes. It returns an attachment with `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. A non-owner and a nonexistent ID share the same 404 response. No public or signed file URLs are issued.
 
-Automated tests cover invalid PDF signature rejection, an upload's safe summary, and denial of another owner's download before storage bytes are read. The test run is pending in this environment. Local filesystem permissions and deployed storage protections are not yet verified.
+Automated tests cover invalid PDF signature rejection, an upload's safe summary, and denial of another owner's download before storage bytes are read. The user ran `mvn test` on 2026-10-19: all 14 backend tests passed. These are service/unit tests; HTTP authorization, PostgreSQL integration, and deployed storage protections still require verification.
 
 ## Administrator account endpoints
 
