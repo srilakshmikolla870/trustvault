@@ -10,10 +10,10 @@ Audit events are recorded for authentication and document/account actions, inclu
 
 ## What was checked
 
-- The backend unit suite passed with 26 tests on 2026-10-22, as reported by the user. A new same-session revocation regression test has been added after that run and must be verified by rerunning the suite.
+- After the same-session revocation regression test was added, the user reported that the backend test suite passed. The exact test count/output was not supplied, so no count is claimed here.
 - The user ran the PostgreSQL role-hardening helper successfully against an isolated disposable database on 2026-10-22. It does not mean the live Render database was hardened.
 - Render reported the service Live, and the public health endpoint returned `UP` on 2026-10-22.
-- The user confirmed that public sign-in and the basic Owner-to-Viewer sharing workflow worked. Other flows—including search, edit, deletion/recovery, denied direct HTTP attempts, and administrator audit review—still need an explicit public-demo check.
+- The user confirmed that public sign-in and the basic Owner-to-Viewer sharing workflow worked. The live Administrator Activity page also showed successful account creation, upload, sharing, metadata edit, and download events. Search, revoke, deletion/recovery, denied direct HTTP attempts, and complete administrator audit review still need an explicit public-demo check.
 
 ## Permission model and known limitations
 
@@ -43,7 +43,8 @@ Folders, external/public links, document versions, automated retention/purge, mu
 - [x] Public GitHub repository and public HTTPS demo are available: https://trustvault-demo-iy81.onrender.com
 - [x] Public health endpoint returned `UP`; user confirmed sign-in and basic Owner-to-Viewer sharing workflow.
 - [x] Disposable PostgreSQL hardening check passed on 2026-10-22.
-- [ ] Rerun the backend suite after adding the same-session revocation test; add real-database and direct HTTP authorization coverage.
+- [x] Rerun the backend suite after adding the same-session revocation test (user reported success; exact count/output not supplied).
+- [ ] Add real-database and direct HTTP authorization coverage.
 - [ ] Apply a restricted runtime/migration role boundary to a production-style database and verify audit protections there. This is not configured on the live Render managed database.
 - [ ] Create documented, dedicated synthetic judge accounts for all three roles and reproducible sample data. Do not publish personal or reused credentials.
 - [ ] Update the public README with the dedicated demo login details only after those accounts are created and tested.

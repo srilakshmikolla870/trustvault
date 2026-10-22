@@ -49,10 +49,10 @@ GitHub Actions runs the backend unit suite and frontend production build on push
 
 ## Current verification
 
-- Backend unit suite: the user reported 26 tests passing on 2026-10-22. A revocation regression test has since been added; run `mvn test` from `backend` to verify the current total.
+- Backend unit suite: after the same-session revocation regression test was added, the user reported that `mvn test` completed successfully. The exact test count/output was not supplied, so no count is claimed here.
 - PostgreSQL role-hardening helper: the user ran it successfully against a disposable PostgreSQL 16 container on 2026-10-22. This did not change or validate the live Render database.
 - Public deployment: Render reported Live; the public `/api/health` endpoint returned `UP` on 2026-10-22.
-- Manual browser checks: the user confirmed public sign-in and the basic Owner-to-Viewer sharing workflow. Search, edit, delete/restore, denied direct API requests, and audit-history behavior have not all been independently verified on the public deployment.
+- Manual browser checks: the user confirmed public sign-in and the basic Owner-to-Viewer sharing workflow. On 2026-10-22, the live Administrator Activity page showed successful account creation, upload, sharing, metadata edit, and download events. Search, revoke, delete/restore, denied direct API requests, and audit-history behavior still need explicit verification on the public deployment.
 - Frontend production build passed during earlier feature work. GitHub Actions builds the frontend and runs backend tests but does not deploy.
 
 Run backend tests from `backend` with `mvn test`. Run the frontend production build from `frontend` with `npm run build`.

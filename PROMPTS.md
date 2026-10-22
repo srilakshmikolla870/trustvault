@@ -70,15 +70,15 @@ These entries summarize actual requests and review work from the development con
 
 **Issue found:** Several documents still said that no public deployment existed. They also treated the 26-test result as current despite later changes and overstated or understated what had been verified.
 
-**Correction and evidence:** Documents now distinguish user-confirmed public workflows, the earlier 26-test result, the disposable database check, and live Render limitations. `npm run build` and `git diff --check` passed. The current Maven test run could not be launched in this environment (`Access is denied` from the Maven executable), so the new Java test is not yet verified. See [commit 0693c07](https://github.com/srilakshmikolla870/trustvault/commit/0693c07) for the documentation update and revocation test. This commit is local and has not been pushed because the Git credential helper cannot start in this execution environment.
+**Correction and evidence:** Documents distinguish the user's report that the backend suite passed after the new revocation test, the disposable database check, observed Activity entries, and live Render limitations. The test count/output was not supplied. `npm run build` and `git diff --check` passed. This environment could not launch Maven (`Access is denied`), so verification evidence is the user's reported successful run. See [commit 0693c07](https://github.com/srilakshmikolla870/trustvault/commit/0693c07) for the documentation update and revocation test. At the time of this entry, the commit was local and could not be pushed because the Git credential helper could not start in the execution environment; the user later confirmed the branch was synced with GitHub.
 
 ## 2026-10-22 — Demo setup accuracy and hand-in follow-up
 
 **Prompt summary:** Finish the remaining challenge items, verify the latest tests, and update GitHub and Render.
 
-**Output:** Corrected the sample-PDF generator path in the demo setup instructions and clarified that judge passwords should not be committed to the public repository. The Maven test command was attempted again but the environment returned `Access is denied`; no backend test result is claimed for the new revocation test. Render dashboard access and credentials for creating judge accounts are not available in this session, so the live database and account setup remain pending.
+**Output:** Corrected the sample-PDF generator path in the demo setup instructions and clarified that judge passwords should not be committed to the public repository. The user reported that the Maven suite passed after the new revocation test was added; the exact result count was not supplied. Render database role separation and dedicated judge-account setup remain pending.
 
-**Evidence and remaining work:** `git diff --check` and the frontend production build passed for this update. Push the queued local commits to GitHub and check CI; once pushed, Render should redeploy from `main`. Create and manually verify dedicated synthetic judge accounts in the live app, complete the public workflow checks, and record the five-minute video before marking the hand-in complete.
+**Evidence and remaining work:** `git diff --check` and the frontend production build passed for the documentation update; the local commits were later confirmed synced with `origin/main`. The user confirmed the deployed flows work generally. Create and verify dedicated synthetic judge accounts, check revoke/delete/restore and denied access directly on the public app, and record the five-minute video before marking the hand-in complete.
 
 ## Reusable context
 
