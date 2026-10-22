@@ -70,7 +70,7 @@ These entries summarize actual requests and review work from the development con
 
 **Issue found:** Several documents still said that no public deployment existed. They also treated the 26-test result as current despite later changes and overstated or understated what had been verified.
 
-**Correction and evidence:** Documents now distinguish user-confirmed public workflows, the earlier 26-test result, the disposable database check, and live Render limitations. `npm run build` and `git diff --check` passed. The current Maven test run could not be launched in this environment (`Access is denied` from the Maven executable), so the new Java test is not yet verified. Commit link will be added after commit.
+**Correction and evidence:** Documents now distinguish user-confirmed public workflows, the earlier 26-test result, the disposable database check, and live Render limitations. `npm run build` and `git diff --check` passed. The current Maven test run could not be launched in this environment (`Access is denied` from the Maven executable), so the new Java test is not yet verified. See [commit 0693c07](https://github.com/srilakshmikolla870/trustvault/commit/0693c07) for the documentation update and revocation test. This commit is local and has not been pushed because the Git credential helper cannot start in this execution environment.
 
 ## Reusable context
 
