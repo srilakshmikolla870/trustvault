@@ -10,7 +10,7 @@ The database audit log records authentication, document access and changes, gran
 
 AI was used for implementation and review support. The prompt history is in `PROMPTS.md`; it records actual issues encountered, including a missing Java import, a frontend async form-reset error, and a stale-backend diagnosis that was initially only a hypothesis. Authorization changes were checked against service-level tests and repository scoping; backend tests for the latest delete/restore changes remain to be run. No AI feature is included in the product. A future access suggestion must never grant access automatically and would need explicit Owner approval and audit records.
 
-This MVP deliberately excludes external/public links, folders, document version history, automated retention/purge, multi-organization tenancy, and AI access suggestions. It is not yet deployed. A production role-hardening script and separate Flyway/runtime credential configuration are included, but they have not been applied to a production database. Cloud hosting, HTTPS, persistent production backups, a live challenge URL, seeded public demo accounts, and a recorded demo remain unfinished. The included Docker Compose profile is for a local/demo run only.
+This MVP deliberately excludes external/public links, folders, document version history, automated retention/purge, multi-organization tenancy, and AI access suggestions. A free Render Blueprint is included for a temporary HTTPS demo, with PDF bytes stored in PostgreSQL so uploads survive web-service restarts. Render's free database expires after 30 days and has no backups; the demo uses the managed database credential for both migrations and runtime requests, so the self-managed database-role hardening has not been applied. Keep demo data synthetic. A production-grade hosting setup with role separation and backups, public demo accounts, and a recorded demo remains unfinished until the live deployment is verified.
 
 ## Five-minute demo outline
 
@@ -35,7 +35,9 @@ This MVP deliberately excludes external/public links, folders, document version 
 - [ ] Dated AI prompt log with identified issues and correction evidence; entries exist, but uncommitted work does not yet have a corrective commit link.
 - [x] Run the current backend unit test suite: 26 passed, 0 failures, 0 errors, 0 skipped (2026-10-22).
 - [ ] Run `backend/deployment/verify-postgres-hardening.ps1` from PowerShell with Docker Desktop access; it applies Flyway migrations and checks the production role script on a disposable, isolated PostgreSQL container.
-- [ ] Publish the repository as required by the challenge (the owner must choose whether to change its current visibility).
-- [ ] Apply and verify role hardening on a disposable PostgreSQL database, then deploy to a public HTTPS URL with persistent backups and safe demo accounts.
+- [ ] Complete GitHub's identity verification to change repository visibility to public.
+- [ ] Deploy the free Render Blueprint, verify the public HTTPS app and health endpoint, and create synthetic demo accounts/data.
+- [ ] Apply and verify role hardening on a disposable PostgreSQL database for a production-style deployment; the Render-managed free database does not support the current hardening script.
+- [ ] Configure production-grade persistent backups; free Render Postgres has no backups and expires after 30 days.
 - [ ] Record and review the five-minute demo video.
 - [ ] Review and commit the final write-up, test evidence, and submission materials.

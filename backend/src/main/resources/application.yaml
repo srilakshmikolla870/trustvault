@@ -2,7 +2,7 @@ spring:
   application:
     name: trustvault-api
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/trustvault}
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:trustvault}}
     username: ${DB_USERNAME:trustvault_app}
     password: ${DB_PASSWORD:}
   jpa:
@@ -11,7 +11,7 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
-    url: ${FLYWAY_URL:${DB_URL:jdbc:postgresql://localhost:5432/trustvault}}
+    url: ${FLYWAY_URL:${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:trustvault}}}
     user: ${FLYWAY_USERNAME:${DB_USERNAME:trustvault_app}}
     password: ${FLYWAY_PASSWORD:${DB_PASSWORD:}}
   servlet:
@@ -20,6 +20,7 @@ spring:
       max-request-size: 11MB
 trustvault:
   storage:
+    mode: ${TRUSTVAULT_STORAGE_MODE:filesystem}
     directory: ${TRUSTVAULT_STORAGE_DIR:./var/private-documents}
 management:
   endpoints:
@@ -27,6 +28,7 @@ management:
       exposure:
         include: health,info
 server:
+  port: ${PORT:8080}
   error:
     include-message: never
     include-stacktrace: never

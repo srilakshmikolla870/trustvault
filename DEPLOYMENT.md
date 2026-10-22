@@ -37,6 +37,18 @@ The Compose production profile is designed for a small Linux virtual server that
 
 The API stores PDFs in a Docker named volume, which survives container restarts and redeploys on that server. It does not protect against loss of the whole server. Enable provider backups or configure and test a separate backup process before treating the demo as durable.
 
+## Free Render demo
+
+The repository includes `render.yaml` and `Dockerfile.render` for a no-cost, short-lived demonstration. The Docker image builds the React frontend into the Spring Boot application, keeping the UI, API, session cookie, and CSRF requests on the same HTTPS origin; the existing sign-in page code does not need cross-origin changes. Render deploys a free web service and a free PostgreSQL database in Singapore. The web service receives a Render HTTPS address automatically; a custom domain is optional.
+
+1. Make the GitHub repository public and connect it to Render. In Render, create a new Blueprint from `srilakshmikolla870/trustvault` and select the `main` branch.
+2. During Blueprint setup, provide a synthetic bootstrap Administrator email and a unique password of 12–72 characters when Render prompts for the two secret variables. Do not put credentials in the repository.
+3. Confirm that both resources are set to the free plan before applying the Blueprint. The database is limited to 1 GB, expires 30 days after creation, and has no backups. The web service sleeps after 15 minutes without traffic and loses its local files on restart; the Blueprint therefore stores uploaded PDF bytes in the PostgreSQL `document_contents` table.
+4. After the deployment reports Live, open the service's `onrender.com` address and check `/api/health` returns `UP`. Sign in as the bootstrap Administrator, create synthetic Owner and Viewer accounts, then upload `demo/TrustVault-Sample.pdf` as Owner and grant the Viewer READ access.
+5. Test the upload/download and share/revoke steps in [TESTING.md](TESTING.md). Expect the first request after idle to take about a minute. Do not upload real personal or confidential documents.
+
+This is a temporary challenge demo, not production hosting. The free PostgreSQL instance will expire after 30 days, the free services can restart, and there are no database backups. The Render managed database does not provide superuser access, so the tested self-managed role-hardening script is not applied by this Blueprint. The app uses the managed database's configured credential for both startup migrations and API requests. Use only synthetic accounts and files, and do not claim production database-role separation or durable backups for this free deployment. Export any required evidence before the database expires.
+
 ## Production role separation
 
 The local demo Compose profile uses one database login for convenience. Do not use that configuration as a public production deployment. After V1/V2 have been applied, review and run `backend/deployment/production-postgres-roles.psql` once against the production database as a database administrator. It assumes the existing bootstrap login and database are named `trustvault_app` and `trustvault`; edit the script for provider-specific role/database names first. It creates non-superuser `trustvault_migrator` and `trustvault_runtime` logins, transfers schema/table/sequence ownership to the migration role, removes runtime truncate privileges, and removes login/superuser capability from the old bootstrap role. Runtime DML remains necessary for account and sharing features, so the API process itself remains trusted and can write account/grant rows.
@@ -46,7 +58,7 @@ The script uses psql's `\password` prompt for the two new credentials. It passed
 - `DB_USERNAME=trustvault_runtime` and `DB_PASSWORD` for normal API requests.
 - `FLYWAY_URL`, `FLYWAY_USERNAME=trustvault_migrator`, and `FLYWAY_PASSWORD` for schema migrations.
 - `SESSION_COOKIE_SECURE=true` when the public endpoint is behind HTTPS.
-- `TRUSTVAULT_STORAGE_DIR` pointing to persistent private storage.
+- `TRUSTVAULT_STORAGE_MODE=filesystem` for local/private server disk storage. The optional Render demo uses `database` mode so PDF bytes are stored in PostgreSQL.
 
 If no `FLYWAY_*` variables are supplied, Flyway intentionally falls back to `DB_*` for local development. Restrict migration credentials to deployment/migration operations and do not give them to the running application beyond startup if your hosting platform supports one-shot migration jobs. The role script has not been executed against a production PostgreSQL service; review it and adapt it to the provider before applying it to real data.
 

@@ -13,7 +13,7 @@ This repository contains the MVP foundation, authentication, account administrat
 - PostgreSQL with Flyway migrations
 - React and Vite
 - Docker Compose for local PostgreSQL or the complete local demo stack
-- Private local filesystem storage for development (configured with `TRUSTVAULT_STORAGE_DIR`)
+- Private filesystem storage locally; optional private PostgreSQL content storage for a free hosted demo
 
 ## Prerequisites
 
@@ -33,9 +33,9 @@ This repository contains the MVP foundation, authentication, account administrat
 
 ### Run the complete app with Docker
 
-The default Compose setup starts only PostgreSQL so the API and React development server can run from their folders. To build and run the containerized API and UI as well, set `POSTGRES_PASSWORD`, `TRUSTVAULT_BOOTSTRAP_ADMIN_EMAIL`, and `TRUSTVAULT_BOOTSTRAP_ADMIN_PASSWORD` in `.env`, then run `docker compose --profile app up --build -d`. Open `http://localhost:8081`. The API is behind the UI's same-origin reverse proxy, PostgreSQL is bound to localhost, and uploaded files use a persistent named volume. Use only synthetic demo accounts and documents.
+The default Compose setup starts only PostgreSQL so the API and React development server can run from their folders. To build and run the containerized API and UI as well, set `POSTGRES_PASSWORD`, `TRUSTVAULT_BOOTSTRAP_ADMIN_EMAIL`, and `TRUSTVAULT_BOOTSTRAP_ADMIN_PASSWORD` in `.env`, then run `docker compose --profile app up --build -d`. Open `http://localhost:8081`. The API is behind the UI's same-origin reverse proxy, PostgreSQL is bound to localhost, and uploaded files use a private local directory on a persistent named volume. Use only synthetic demo accounts and documents.
 
-For a public deployment, follow [DEPLOYMENT.md](DEPLOYMENT.md), use the public Compose overlay on a server you control, set `SESSION_COOKIE_SECURE=true`, and configure the restricted PostgreSQL runtime role separate from the migration owner. The overlay configures Caddy for HTTPS, but does not provision a cloud server, domain, backups, or public demo credentials.
+For a free Render demo, use the `render.yaml` Blueprint. It serves the React UI and Spring Boot API from one HTTPS site so the existing same-origin sign-in flow is unchanged. This demo stores PDF bytes in PostgreSQL because free Render web services have temporary filesystems. Render's free PostgreSQL expires after 30 days and has no backups; the free web service may sleep and lose active sessions. Keep the demo synthetic and export anything you need before the database expires. For a longer-lived paid Docker server, follow [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### Continuous integration
 
@@ -78,6 +78,6 @@ After signing in as the bootstrap administrator, the React interface can create 
 
 ## Initial document workflow
 
-Sign in with an OWNER account and submit a PDF with a title and category. Uploads are limited to 10 MiB and validated by file extension, MIME type, and PDF header signature. Bytes are stored outside the web root with a generated opaque name. The owner can list and download their own active documents. The download endpoint checks ownership on every request, uses attachment delivery, and disables caching. Set `TRUSTVAULT_STORAGE_DIR` to a private persistent directory before running outside local development. Do not place this directory under a publicly served frontend path.
+Sign in with an OWNER account and submit a PDF with a title and category. Uploads are limited to 10 MiB and validated by file extension, MIME type, and PDF header signature. Bytes are stored outside the web root with a generated opaque name. Local development uses a private filesystem directory; the Render demo stores bytes in PostgreSQL. The owner can list and download their own active documents. The download endpoint checks ownership on every request, uses attachment delivery, and disables caching. Do not place filesystem storage under a publicly served frontend path.
 
 Owners can share a file with an active Viewer using READ or EDIT access from each document row. READ permits listing and downloading. EDIT also permits title/category changes through the document list. Revocation is checked against the database on each new request, so the next request from the same logged-in Viewer is denied. Administrators do not gain document access from their role. Search is available by title, owner, category, and creation date. Owners can soft-delete documents and restore them from the Recently deleted section; a restored file must be shared again to give Viewers access. Audit rows are protected by database triggers against ordinary update, delete, and truncate operations.

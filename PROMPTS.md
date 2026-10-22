@@ -18,6 +18,15 @@ Correction and evidence: [change, real test/command/result]
 Commit: [actual hash/link after commit]
 ```
 
+## 2026-10-22 — Prepare a free Render demo
+
+**Tool:** Codex coding assistant
+**Prompt or fair summary:** Make the GitHub repository public and deploy both the frontend and backend using the free hosting plan so hackathon judges can view the app.
+**Output:** Prepared a Render Blueprint and combined Docker build that serves the existing React UI and Spring Boot API from the same HTTPS origin. Kept the current sign-in page code and local filesystem storage behavior. Added an optional PostgreSQL document-content mode for Render because free web-service files are temporary, and documented the free database expiry and role-hardening limitations.
+**Issue found or verification performed:** The GitHub visibility change is waiting for GitHub's email identity verification. Render account currently has no services. Free Render Postgres expires after 30 days and has no backups; free web services sleep and cannot use persistent disks. The Render-managed database does not allow the self-managed superuser role script to run as written.
+**Correction and evidence:** `npm run build` passed with Vite 8.3.4. Maven could not be launched by this environment (`Access is denied`); Docker could not reach the local Docker Desktop engine. The Render image build and deployment have not yet been verified. No sign-in frontend code was changed.
+**Commit:** Pending.
+
 The initial project foundation was drafted in the Codex session on 2026-10-18. This is not yet a completed scored entry: there is no commit link, and backend/database execution could not be verified in the current environment.
 
 ## 2026-10-19 — Admin-only owner/viewer account management

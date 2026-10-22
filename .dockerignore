@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+!.env.example
+**/node_modules
+**/target
+**/dist
+**/coverage
+**/*.log
+var/private-documents
+backend/var/private-documents

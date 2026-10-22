@@ -1,5 +1,5 @@
 -- One-time production hardening script. Run with psql as a database administrator
--- after migrations V1 and V2 have completed. Do not run against the local demo DB.
+-- after all Flyway migrations have completed. Do not run against the local demo DB.
 -- This script assumes the existing high-privilege application/bootstrap role is
 -- named trustvault_app and the database is named trustvault. Adjust those names
 -- for your provider before running it.

@@ -42,7 +42,11 @@ try {
     $bootstrapRole = "CREATE ROLE trustvault_app LOGIN SUPERUSER; ALTER DATABASE trustvault OWNER TO trustvault_app;"
     Invoke-Docker -DockerArgs @('exec', $containerName, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'trustvault', '-c', $bootstrapRole)
 
-    foreach ($migration in @('V1__initial_schema.sql', 'V2__protect_audit_events.sql')) {
+    foreach ($migration in @(
+        'V1__initial_schema.sql',
+        'V2__protect_audit_events.sql',
+        'V3__store_private_document_content.sql'
+    )) {
         $migrationPath = Join-Path $migrationDirectory $migration
         Invoke-Docker -DockerArgs @('cp', $migrationPath, "${containerName}:/tmp/$migration")
         Write-Host "Applying $migration"
@@ -51,7 +55,7 @@ try {
 
     # production-postgres-roles.psql is documented to run after Flyway.
     # This isolated verifier applies SQL files directly, so create the Flyway
-    # metadata table and record the two migrations to reproduce that state.
+    # metadata table and record the migrations to reproduce that state.
     $flywayHistory = @'
 CREATE TABLE public.flyway_schema_history (
     installed_rank INTEGER NOT NULL PRIMARY KEY,
@@ -70,7 +74,8 @@ INSERT INTO public.flyway_schema_history
     (installed_rank, version, description, type, script, installed_by, execution_time, success)
 VALUES
     (1, '1', 'initial schema', 'SQL', 'V1__initial_schema.sql', 'trustvault_app', 0, TRUE),
-    (2, '2', 'protect audit events', 'SQL', 'V2__protect_audit_events.sql', 'trustvault_app', 0, TRUE);
+    (2, '2', 'protect audit events', 'SQL', 'V2__protect_audit_events.sql', 'trustvault_app', 0, TRUE),
+    (3, '3', 'store private document content', 'SQL', 'V3__store_private_document_content.sql', 'trustvault_app', 0, TRUE);
 '@
     Write-Host 'Preparing Flyway history for the post-migration hardening check'
     Invoke-Docker -DockerArgs @('exec', $containerName, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'trustvault_app', '-d', 'trustvault', '-c', $flywayHistory)
@@ -107,6 +112,9 @@ VALUES
     $privilegeQuery = @'
 SELECT
   has_table_privilege('trustvault_runtime', 'public.users', 'INSERT')
+  AND has_table_privilege('trustvault_runtime', 'public.document_contents', 'INSERT')
+  AND has_table_privilege('trustvault_runtime', 'public.document_contents', 'SELECT')
+  AND has_table_privilege('trustvault_runtime', 'public.document_contents', 'DELETE')
   AND has_table_privilege('trustvault_runtime', 'public.document_grants', 'INSERT')
   AND has_table_privilege('trustvault_runtime', 'public.audit_events', 'INSERT')
   AND NOT has_table_privilege('trustvault_runtime', 'public.audit_events', 'UPDATE')

@@ -66,7 +66,8 @@ public class SecurityConfiguration {
         http
             .authenticationProvider(provider)
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/api/health", "/api/auth/csrf", "/api/auth/login").permitAll()
+                .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico",
+                    "/api/health", "/api/auth/csrf", "/api/auth/login").permitAll()
                 .requestMatchers("/api/admin/**").hasRole(UserRole.ADMINISTRATOR.name())
                 .requestMatchers(HttpMethod.POST, "/api/documents").hasRole(UserRole.OWNER.name())
                 .requestMatchers("/api/documents/**").authenticated()

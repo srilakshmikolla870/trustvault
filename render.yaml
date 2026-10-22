@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: trustvault-demo
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: TRUSTVAULT_STORAGE_MODE
+        value: database
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=60.0 -XX:InitialRAMPercentage=20.0"
+      - key: DB_HOST
+        fromDatabase:
+          name: trustvault-demo-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: trustvault-demo-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: trustvault-demo-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: trustvault-demo-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: trustvault-demo-db
+          property: password
+      - key: TRUSTVAULT_BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: TRUSTVAULT_BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+
+databases:
+  - name: trustvault-demo-db
+    databaseName: trustvault
+    user: trustvault_app
+    postgresMajorVersion: "16"
+    plan: free
+    region: singapore
+    ipAllowList: []
