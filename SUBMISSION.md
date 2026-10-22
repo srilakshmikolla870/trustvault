@@ -1,43 +1,53 @@
 # Challenge submission notes
 
-## Short write-up
+## What is built
 
-TrustVault is a private PDF-sharing application. Administrators create and disable Owner and Viewer accounts. Owners upload documents, search and edit metadata, grant named Viewers READ or EDIT access, revoke grants, and soft-delete or restore their documents. Viewers see only documents with a current grant. An EDIT grant also permits metadata updates. Administrators can inspect recent audit activity but do not receive document access from their role.
+TrustVault is a PDF-sharing application with Administrator, Owner, and Viewer roles. Administrators create and deactivate Owner/Viewer accounts and can inspect recent activity. Owners upload, search, edit, share, soft-delete, and restore PDFs. Owners grant named Viewers READ or EDIT access. Viewers can access only documents with a current grant; EDIT also allows metadata changes. Restoring a deleted document does not restore old grants.
 
-The authorization decision lives in the Spring Boot service for each document operation. A document ID is never treated as authorization. Listing starts from a database query restricted to the signed-in Owner or a Viewer with a current unrevoked, unexpired grant. Download and edit repeat the current ownership/grant check on the server. Deactivation is refreshed from the database per request. Revocation blocks the next request after the change commits. Documents are stored outside the web root under generated storage keys; the API returns file bytes only after authorization.
+Document authorization is enforced by the Spring Boot service on each protected request. A document ID is not permission. Listings start from a visibility-scoped query, and download/edit/share/revoke/delete/restore operations check current account state, role, ownership, or grant as appropriate. No reusable public file URL is issued. Local bytes are kept outside the web root; the Render demo stores bytes in PostgreSQL.
 
-The database audit log records authentication, document access and changes, grants, revocations, deletion, restoration, and denied attempts. Migration V2 adds triggers that reject ordinary update, delete, and truncate operations on audit rows. This is not protection against a database superuser or table owner: a public deployment must use a separate migration owner and a restricted runtime database role. Audit rows do not contain document bytes or storage keys.
+Audit events are recorded for authentication and document/account actions, including many denied requests. The Administrator can view recent entries. PostgreSQL triggers reject ordinary UPDATE, DELETE, and TRUNCATE on audit rows. The trigger and separate-role script passed a disposable PostgreSQL 16 check on 2026-10-22. The live Render database has **not** been given separate runtime and migration roles: it uses the managed database credential for both API and Flyway. Therefore the live demo does not yet prove the challenge's audit-tamper resistance standard. A database administrator remains trusted in the self-managed design.
 
-AI was used for implementation and review support. The prompt history is in `PROMPTS.md`; it records actual issues encountered, including a missing Java import, a frontend async form-reset error, and a stale-backend diagnosis that was initially only a hypothesis. Authorization changes were checked against service-level tests and repository scoping; backend tests for the latest delete/restore changes remain to be run. No AI feature is included in the product. A future access suggestion must never grant access automatically and would need explicit Owner approval and audit records.
+## What was checked
 
-This MVP deliberately excludes external/public links, folders, document version history, automated retention/purge, multi-organization tenancy, and AI access suggestions. A free Render Blueprint is included for a temporary HTTPS demo, with PDF bytes stored in PostgreSQL so uploads survive web-service restarts. Render's free database expires after 30 days and has no backups; the demo uses the managed database credential for both migrations and runtime requests, so the self-managed database-role hardening has not been applied. Keep demo data synthetic. A production-grade hosting setup with role separation and backups, public demo accounts, and a recorded demo remains unfinished until the live deployment is verified.
+- The backend unit suite passed with 26 tests on 2026-10-22, as reported by the user. A new same-session revocation regression test has been added after that run and must be verified by rerunning the suite.
+- The user ran the PostgreSQL role-hardening helper successfully against an isolated disposable database on 2026-10-22. It does not mean the live Render database was hardened.
+- Render reported the service Live, and the public health endpoint returned `UP` on 2026-10-22.
+- The user confirmed that public sign-in and the basic Owner-to-Viewer sharing workflow worked. Other flows—including search, edit, deletion/recovery, denied direct HTTP attempts, and administrator audit review—still need an explicit public-demo check.
+
+## Permission model and known limitations
+
+Permissions are per document, assigned by an Owner to a named active Viewer. READ permits viewing/downloading. EDIT includes READ and permits title/category changes. The backend reloads the current grant on each relevant request; revocation therefore denies the next new request. The app does not issue reusable download links.
+
+This is an MVP, not a production security certification. The automated authorization tests are mostly service-level unit tests; the JPQL visibility query and all HTTP/CSRF routes have not been comprehensively exercised against a real database. PDF validation checks extension, declared MIME type, size, and the `%PDF-` header; it does not parse the complete PDF structure. There is no login rate limiting. The free Render database expires after 30 days and has no backups. The live deployment uses one managed database credential for both app traffic and migrations, so audit triggers are not an independent security boundary against the database credential holder.
+
+Folders, external/public links, document versions, automated retention/purge, multi-organization tenancy, and AI access suggestions are deliberately out of scope. No AI feature is included in the product. If access suggestions are added later, a person must approve each grant and the decision must be audited.
 
 ## Five-minute demo outline
 
-1. **0:00–0:35 — Sign in and roles:** Sign in as Administrator. Show the Overview, Accounts, and Activity pages. Explain that Administrator manages accounts and can audit activity, but cannot open files.
-2. **0:35–1:15 — Provision test users:** Create one Owner and one Viewer with synthetic credentials. Show role and Active status in Accounts.
-3. **1:15–2:05 — Private upload:** Sign in as Owner, upload a small synthetic PDF, search by title/category, edit its metadata, then download it.
-4. **2:05–3:15 — Named access and revocation:** Share with the Viewer as READ. Show the Viewer can list/download it but cannot edit or share. Revoke access and show the document disappears or its download request is denied. Emphasize that the server checks the current grant on every request.
-5. **3:15–4:05 — Delete and restore:** Share again, soft-delete as Owner, and show the Viewer loses access. Restore from Recently deleted and show the old grant remains revoked until the Owner shares again.
-6. **4:05–4:40 — Audit evidence:** Return to Administrator Activity and show allowed and denied events without document bytes or storage keys.
-7. **4:40–5:00 — Close honestly:** Show the threat register and describe the known deployment hardening and verification gaps listed above.
+1. **0:00–0:35 — Roles:** Sign in as Administrator. Show Overview, Accounts, and Activity. Explain that Administrator manages accounts and reviews activity but cannot open files.
+2. **0:35–1:15 — Accounts:** Show the dedicated synthetic Owner and Viewer accounts and their roles/status.
+3. **1:15–2:05 — Private document:** Sign in as Owner, upload a harmless sample PDF, search for it, edit its metadata, and download it.
+4. **2:05–3:15 — Grant and revoke:** Grant the Viewer READ access, verify the Viewer can download, revoke access, and verify a new request is denied.
+5. **3:15–4:05 — Delete and restore:** Demonstrate Owner soft-delete and restore; confirm old Viewer grants stay revoked.
+6. **4:05–4:40 — Audit:** Show corresponding allowed and denied events without document bytes or storage keys.
+7. **4:40–5:00 — Honest close:** Show `THREATS.md` and describe the live database role-separation gap and remaining verification.
 
 ## Hand-in checklist
 
-- [x] Authentication with Administrator, Owner, and Viewer roles.
-- [x] Upload, organize, search, and manage PDFs.
-- [x] Named per-document READ/EDIT grants and revocation.
-- [x] Server-side ownership/current-grant checks in document services.
-- [x] Audit activity view and threat register.
-- [x] API/setup documentation and local Docker Compose profile.
-- [x] Synthetic sample PDF generator and safe demo-account setup instructions.
-- [x] Optional separate migration/runtime database roles and role-hardening script.
-- [ ] Dated AI prompt log with identified issues and correction evidence; entries exist, but uncommitted work does not yet have a corrective commit link.
-- [x] Run the current backend unit test suite: 26 passed, 0 failures, 0 errors, 0 skipped (2026-10-22).
-- [ ] Run `backend/deployment/verify-postgres-hardening.ps1` from PowerShell with Docker Desktop access; it applies Flyway migrations and checks the production role script on a disposable, isolated PostgreSQL container.
-- [ ] Complete GitHub's identity verification to change repository visibility to public.
-- [ ] Deploy the free Render Blueprint, verify the public HTTPS app and health endpoint, and create synthetic demo accounts/data.
-- [ ] Apply and verify role hardening on a disposable PostgreSQL database for a production-style deployment; the Render-managed free database does not support the current hardening script.
-- [ ] Configure production-grade persistent backups; free Render Postgres has no backups and expires after 30 days.
+- [x] Three roles and account administration are implemented.
+- [x] PDF upload, organization by category, search, metadata edit, download, soft-delete, and restore are implemented.
+- [x] Named per-document READ/EDIT grants and revocation are implemented.
+- [x] Server-side ownership/current-grant checks and cross-user service tests exist.
+- [x] Audit activity view, threat register, API documentation, migrations, local setup, and deployment instructions exist.
+- [x] Public GitHub repository and public HTTPS demo are available: https://trustvault-demo-iy81.onrender.com
+- [x] Public health endpoint returned `UP`; user confirmed sign-in and basic Owner-to-Viewer sharing workflow.
+- [x] Disposable PostgreSQL hardening check passed on 2026-10-22.
+- [ ] Rerun the backend suite after adding the same-session revocation test; add real-database and direct HTTP authorization coverage.
+- [ ] Apply a restricted runtime/migration role boundary to a production-style database and verify audit protections there. This is not configured on the live Render managed database.
+- [ ] Create documented, dedicated synthetic judge accounts for all three roles and reproducible sample data. Do not publish personal or reused credentials.
+- [ ] Update the public README with the dedicated demo login details only after those accounts are created and tested.
+- [ ] Finish checking search, edit, delete/restore, direct unauthorized requests, and audit activity on the deployed app.
 - [ ] Record and review the five-minute demo video.
-- [ ] Review and commit the final write-up, test evidence, and submission materials.
+- [ ] Correct prompt-history entries with commit references and push the final hand-in materials.
+- [ ] Plan for the free Render database's expiration and lack of backups; export demo evidence before expiry.

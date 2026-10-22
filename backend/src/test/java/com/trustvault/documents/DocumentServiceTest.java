@@ -128,6 +128,36 @@ class DocumentServiceTest {
     }
 
     @Test
+    void viewerCannotDownloadAfterOwnerRevokesGrantDuringSameSession() throws Exception {
+        UUID viewerId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+        UUID documentOwnerId = ownerId;
+        String storageKey = UUID.randomUUID() + ".pdf";
+        var document = new DocumentEntity(documentId, documentOwnerId, "Shared", "Work", "shared.pdf",
+                "application/pdf", 10, "0".repeat(64), storageKey);
+        var grant = new DocumentGrantEntity(UUID.randomUUID(), documentId, viewerId, GrantPermission.READ, documentOwnerId);
+        when(users.findById(documentOwnerId)).thenReturn(Optional.of(
+                new UserEntity(documentOwnerId, "owner@example.test", "Owner", "hash", UserRole.OWNER, true)));
+        when(users.findById(viewerId)).thenReturn(Optional.of(
+                new UserEntity(viewerId, "viewer@example.test", "Viewer", "hash", UserRole.VIEWER, true)));
+        when(documents.findByIdAndStatus(documentId, "ACTIVE")).thenReturn(Optional.of(document));
+        when(grants.findByDocumentIdAndUserIdAndRevokedAtIsNull(documentId, viewerId)).thenReturn(Optional.of(grant));
+        when(grants.findCurrentGrant(documentId, viewerId)).thenAnswer(invocation ->
+                grant.getRevokedAt() == null ? Optional.of(grant) : Optional.empty());
+
+        service.revoke(documentOwnerId, documentId, viewerId);
+
+        assertThrows(DocumentService.NotFoundException.class, () -> service.download(viewerId, documentId));
+        assertNotNull(grant.getRevokedAt());
+        verify(grants).save(grant);
+        verify(storage, never()).read(any());
+        verify(audit).recordDocumentEvent(documentOwnerId, documentId,
+                "DOCUMENT_REVOKE", "ALLOWED", "GRANT_REVOKED");
+        verify(audit).recordIndependentDocumentEvent(viewerId, documentId,
+                "DOCUMENT_DOWNLOAD", "DENIED", "NOT_AUTHORIZED_OR_NOT_FOUND");
+    }
+
+    @Test
     void viewerListingUsesVisibilityScopedRepositoryQuery() {
         UUID viewerId = UUID.randomUUID();
         when(users.findById(viewerId)).thenReturn(Optional.of(

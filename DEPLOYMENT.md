@@ -14,7 +14,7 @@ The normal local development mode remains available: run only `docker compose up
 
 ### Verification completed locally
 
-On 2026-10-22, the Docker Compose API container started successfully and `http://localhost:8081/api/health` returned `UP`. The disposable PostgreSQL 16 hardening helper also completed successfully, verifying the runtime role's required app permissions, audit-event append, and rejection of an audit-row UPDATE even when attempted as the table owner. The helper uses a temporary container with no published port or persistent volume; it does not harden the local Compose database. Browser sign-in and other user workflows, and any production deployment, still need separate verification.
+On 2026-10-22, the local Docker Compose API health route returned `UP`. The user also ran the disposable PostgreSQL 16 hardening helper successfully; it verified runtime permissions, audit append, and rejection of an audit-row UPDATE in the temporary database. This did not harden the local or hosted database. The free Render deployment at [https://trustvault-demo-iy81.onrender.com](https://trustvault-demo-iy81.onrender.com) reported Live, and its public health route returned `UP` on 2026-10-22. The user confirmed public sign-in and the basic Owner-to-Viewer sharing flow. Other workflows and direct unauthorized HTTP attempts still need explicit verification.
 
 ## Public demo on a Docker server
 
@@ -47,7 +47,7 @@ The repository includes `render.yaml` and `Dockerfile.render` for a no-cost, sho
 4. After the deployment reports Live, open the service's `onrender.com` address and check `/api/health` returns `UP`. Sign in as the bootstrap Administrator, create synthetic Owner and Viewer accounts, then upload `demo/TrustVault-Sample.pdf` as Owner and grant the Viewer READ access.
 5. Test the upload/download and share/revoke steps in [TESTING.md](TESTING.md). Expect the first request after idle to take about a minute. Do not upload real personal or confidential documents.
 
-This is a temporary challenge demo, not production hosting. The free PostgreSQL instance will expire after 30 days, the free services can restart, and there are no database backups. The Render managed database does not provide superuser access, so the tested self-managed role-hardening script is not applied by this Blueprint. The app uses the managed database's configured credential for both startup migrations and API requests. Use only synthetic accounts and files, and do not claim production database-role separation or durable backups for this free deployment. Export any required evidence before the database expires.
+This is a temporary challenge demo, not production hosting. The free PostgreSQL instance will expire after 30 days, the free services can restart, and there are no database backups. The Render managed database does not provide the privileges needed by the self-managed role-hardening script. The app uses the managed database's configured credential for both startup migrations and API requests. Use only synthetic accounts and files, and do not claim production database-role separation or durable backups for this free deployment. Export required evidence before the database expires.
 
 ## Production role separation
 
@@ -68,8 +68,9 @@ If no `FLYWAY_*` variables are supplied, Flyway intentionally falls back to `DB_
 - Build and deploy the containers; publish only the frontend/reverse-proxy port. Keep PostgreSQL private.
 - Terminate TLS at a trusted reverse proxy or hosting load balancer and set `SESSION_COOKIE_SECURE=true`.
 - Apply the separate database roles described above and store all secrets in the host's secret manager.
-- Create dedicated synthetic demo accounts and a synthetic sample document. Put the public demo URL and those dedicated credentials in the repository README only after validating the deployed app.
+- [x] Deploy public HTTPS demo at https://trustvault-demo-iy81.onrender.com and check `/api/health` returns `UP` (2026-10-22).
+- [ ] Create dedicated synthetic judge accounts and a synthetic sample document. Put their credentials in the repository README only after validating them; never publish personal or reused passwords.
 - Verify that an ungranted Viewer cannot list or download a document, and that revoked access fails on the next request.
 - Configure and test database and document-volume backups, restore, monitoring, and retention before using any real data.
 
-No public server, domain, backups, or deployment credentials are configured by this repository. No public deployment URL exists yet.
+The public Render demo is live, but its free database has no backups and expires after 30 days. The managed database's runtime/migration role separation is not configured. These limitations are not production-ready and remain hand-in risks.

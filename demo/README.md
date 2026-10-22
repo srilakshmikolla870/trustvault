@@ -9,4 +9,4 @@ This guide creates safe, repeatable demo content without placing account passwor
 5. Sign in as the Owner, upload `demo/TrustVault-Sample.pdf`, then share it with the Viewer as READ. This seeds one document and an auditable sharing event using the actual application workflow.
 6. For a public demo, create dedicated synthetic demo accounts after deployment and share their credentials only in the challenge README. Never publish local, personal, bootstrap, or production credentials.
 
-The script generates the PDF only; it does not seed accounts or bypass the application's authorization flow. The public demo accounts and live URL still need to be provisioned by the project owner.
+The script generates the PDF only; it does not seed accounts or bypass the application's authorization flow. The public demo is live at https://trustvault-demo-iy81.onrender.com. Its accounts must be created through the application; this repository does not automatically provision judge accounts or publish their credentials. Create dedicated synthetic accounts and publish only credentials intended for this public demo.

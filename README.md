@@ -4,7 +4,13 @@ Secure document sharing for the Snovasys Fresher Hiring Challenge 2026.
 
 ## Current status
 
-This repository contains the MVP foundation, authentication, account administration, and document sharing. Owners can upload, list, download, and share validated PDFs with named Viewers as READ or EDIT. Current grants are checked for every list and download request, and Owners can revoke access. Document search by title, owner, category, and date range is implemented. Owners can soft-delete and restore their documents; restoration does not re-enable prior Viewer access. Audit rows reject ordinary updates/deletes/truncation. Separate Flyway/runtime database credentials and a one-time production role-hardening script are provided. The script passed the disposable PostgreSQL verification on 2026-10-22; it has not been applied to a production database. Administrators can review the latest recorded activity.
+The application is deployed at [https://trustvault-demo-iy81.onrender.com](https://trustvault-demo-iy81.onrender.com). The user confirmed sign-in and the Owner-to-Viewer sharing workflow on the public demo on 2026-10-22; the public health endpoint returned `UP` on the same date.
+
+Owners can upload, list, download, search, edit, share, soft-delete, and restore PDFs. Named Viewers receive READ or EDIT grants, and Owners can revoke access. The server checks current access on protected requests. Administrators manage accounts and review recent activity but do not gain document access from their role.
+
+The audit append-only triggers and separate migration/runtime roles were verified on a disposable PostgreSQL 16 database on 2026-10-22. **They have not been applied to the live Render database.** Render's managed database is currently configured with one credential for both API requests and Flyway migrations, so the live deployment does not have the tested role separation. The free database expires after 30 days and has no backups. Use synthetic demo content only.
+
+The repository does not yet publish judge login credentials or automatically seed the live database. Create dedicated synthetic demo accounts and add safe demo instructions before handing in; never publish personal or reused passwords.
 
 ## Stack
 
@@ -43,13 +49,11 @@ GitHub Actions runs the backend unit suite and frontend production build on push
 
 ## Current verification
 
-- On 2026-10-18, the user ran the backend unit suite: 6 tests passed, 0 failures, 0 errors. These were the authentication/current-account tests before user administration tests were added.
-- On 2026-10-22, the user's local Docker Compose stack started and `http://localhost:8081/api/health` returned `UP` for `trustvault-api`. This confirms the local API health route through the frontend proxy only; browser sign-in and document/account workflows have not been confirmed in that run.
-- `npm run build` passed after the account-administration UI changes (Vite transformed 15 modules and emitted the production bundle).
-- On 2026-10-22, the backend unit suite passed: 26 tests, 0 failures, 0 errors, and 0 skipped. These are automated tests, not a substitute for checking the UI workflows against the running app.
-- The frontend production build passed after the Owner PDF upload/list/download UI was added. Manual HTTP checks for document endpoints and database-backed application integration tests remain pending; only `/api/health` has been manually checked through the local Compose proxy so far.
-- A later user test exposed a frontend form reset error after upload; the file input now clears through a React ref. `npm run build` passed after that fix. Confirm the form behavior in the refreshed browser after the backend starts successfully.
-- On 2026-10-22, the role-hardening helper completed against a disposable PostgreSQL 16 container. It verified runtime privileges, audit append, and rejection of audit-row UPDATE even for the table owner. This does not change or validate the persistent local or production database configuration.
+- Backend unit suite: the user reported 26 tests passing on 2026-10-22. A revocation regression test has since been added; run `mvn test` from `backend` to verify the current total.
+- PostgreSQL role-hardening helper: the user ran it successfully against a disposable PostgreSQL 16 container on 2026-10-22. This did not change or validate the live Render database.
+- Public deployment: Render reported Live; the public `/api/health` endpoint returned `UP` on 2026-10-22.
+- Manual browser checks: the user confirmed public sign-in and the basic Owner-to-Viewer sharing workflow. Search, edit, delete/restore, denied direct API requests, and audit-history behavior have not all been independently verified on the public deployment.
+- Frontend production build passed during earlier feature work. GitHub Actions builds the frontend and runs backend tests but does not deploy.
 
 Run backend tests from `backend` with `mvn test`. Run the frontend production build from `frontend` with `npm run build`.
 
@@ -66,7 +70,7 @@ See [TESTING.md](TESTING.md) for a role-by-role manual walkthrough of upload, se
 
 See [THREATS.md](THREATS.md) for initial threats and verification status.
 
-See [SUBMISSION.md](SUBMISSION.md) for the challenge write-up draft, five-minute demo outline, and remaining hand-in checklist. [demo/README.md](demo/README.md) explains how to create synthetic demo accounts and seed a sample document.
+See [SUBMISSION.md](SUBMISSION.md) for the challenge write-up, five-minute demo outline, and remaining hand-in checklist. [demo/README.md](demo/README.md) explains how to create synthetic demo accounts and a sample document.
 
 ## Authentication foundation
 
