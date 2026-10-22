@@ -30,7 +30,7 @@ These entries summarize actual requests and review work from the development con
 
 **Issue found:** A first user test run found checked `IOException` compile errors in the tests. Later startup testing found a Hibernate/PostgreSQL checksum type mismatch, and an upload succeeded before the browser showed a form-reset error.
 
-**Correction and evidence:** The test compile issue was corrected; the checksum mapping and React file-input reset were fixed. The user reported 14 backend tests passing after the test correction, and the frontend production build passed after the UI correction. See [document workflow commit d9d26f0](https://github.com/srilakshmikolla870/trustvault/commit/d9d26f096f51ab0221686b4111149b6cfdd3aff2), [test compile correction 110a2d2](https://github.com/srilakshmikolla870/trustvault/commit/110a2d2), and [runtime/form fix 0fe062a](https://github.com/srilakshmikolla870/trustvault/commit/0fe062a97a69ebdb9f14091c91df7e0132713ba2).
+**Correction and evidence:** The test compile issue was corrected; the checksum mapping and React file-input reset were fixed. The user reported 14 backend tests passing after the test correction, and the frontend production build passed after the UI correction. See [document workflow commit d9d26f0](https://github.com/srilakshmikolla870/trustvault/commit/d9d26f096f51ab0221686b4111149b6cfdd3aff2), [test compile correction 110a2d2](https://github.com/srilakshmikolla870/trustvault/commit/110a2d22856996d47896e88b8b2cd41f688593c6), and [runtime/form fix 0fe062a](https://github.com/srilakshmikolla870/trustvault/commit/0fe062a97a69ebdb9f14091c91df7e0132713ba2).
 
 ## 2026-10-19 — Per-document access control and revocation
 
