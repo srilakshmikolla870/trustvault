@@ -35,7 +35,7 @@ This repository contains the MVP foundation, authentication, account administrat
 
 The default Compose setup starts only PostgreSQL so the API and React development server can run from their folders. To build and run the containerized API and UI as well, set `POSTGRES_PASSWORD`, `TRUSTVAULT_BOOTSTRAP_ADMIN_EMAIL`, and `TRUSTVAULT_BOOTSTRAP_ADMIN_PASSWORD` in `.env`, then run `docker compose --profile app up --build -d`. Open `http://localhost:8081`. The API is behind the UI's same-origin reverse proxy, PostgreSQL is bound to localhost, and uploaded files use a persistent named volume. Use only synthetic demo accounts and documents.
 
-For a public deployment, follow [DEPLOYMENT.md](DEPLOYMENT.md), put the UI behind HTTPS, set `SESSION_COOKIE_SECURE=true`, and configure the restricted PostgreSQL runtime role separate from the migration owner. The Compose file is a local/demo package; it does not provision a cloud service, TLS certificate, backups, or public demo credentials.
+For a public deployment, follow [DEPLOYMENT.md](DEPLOYMENT.md), use the public Compose overlay on a server you control, set `SESSION_COOKIE_SECURE=true`, and configure the restricted PostgreSQL runtime role separate from the migration owner. The overlay configures Caddy for HTTPS, but does not provision a cloud server, domain, backups, or public demo credentials.
 
 ### Continuous integration
 

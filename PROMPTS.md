@@ -257,3 +257,12 @@ The initial project foundation was drafted in the Codex session on 2026-10-18. T
 **Issue found or verification performed:** The complete disposable PostgreSQL 16 run printed `DATABASE HARDENING CHECK PASSED`. It confirmed the runtime role's required application privileges, that it can append an audit event, and that PostgreSQL rejects audit-row UPDATE even when attempted as the table owner. The local Docker Compose API also started, and `http://localhost:8081/api/health` returned `UP` for `trustvault-api`. The backend unit-suite result recorded for this project is 26 passed, 0 failures, 0 errors, 0 skipped.
 **Correction and evidence:** Updated `THREATS.md`, `API.md`, `README.md`, and `DEPLOYMENT.md` to distinguish these completed checks from still-pending browser sign-in, other API/document workflows, production database hardening, and public deployment. The disposable helper did not alter the persistent local application database. No sign-in implementation was changed.
 **Commit:** Pending; no commit has been created.
+
+## 2026-10-22 — Prepare a public HTTPS Docker deployment
+
+**Tool:** Codex coding assistant
+**Prompt or fair summary:** Deploy the project from the GitHub repository to a public hosting service.
+**Output:** Reviewed the current Docker Compose setup and hosting requirements. Added a public Compose overlay with Caddy HTTPS proxy configuration and updated deployment documentation for a self-managed Docker server.
+**Issue found or verification performed:** The frontend and API currently depend on Compose service DNS, and PDFs are stored on a Docker volume. A managed PostgreSQL option such as Render does not grant superuser privileges, while the existing production role-hardening script requires a database administrator with those privileges. A Render deployment using that script as-is would leave out the database protection documented as required.
+**Correction and evidence:** Prepared a Docker-server deployment path using the existing PostgreSQL container, private database port, persistent file/database volumes, and Caddy for HTTPS. No cloud server or paid resource was created, no credentials were added, and no public URL has been deployed. The user must create a server/domain and configure its DNS and firewall before deployment can proceed.
+**Commit:** Pending; no commit has been created.

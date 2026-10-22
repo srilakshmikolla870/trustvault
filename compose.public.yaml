@@ -1,0 +1,21 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    profiles: [public]
+    restart: unless-stopped
+    environment:
+      TRUSTVAULT_DOMAIN: ${TRUSTVAULT_DOMAIN:?Set TRUSTVAULT_DOMAIN to your public domain}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - trustvault-caddy-data:/data
+      - trustvault-caddy-config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  trustvault-caddy-data:
+  trustvault-caddy-config:
