@@ -10,7 +10,7 @@ Owners can upload, list, download, search, edit, share, soft-delete, and restore
 
 The audit append-only triggers and separate migration/runtime roles were verified on a disposable PostgreSQL 16 database on 2026-10-22. **They have not been applied to the live Render database.** Render's managed database is currently configured with one credential for both API requests and Flyway migrations, so the live deployment does not have the tested role separation. The free database expires after 30 days and has no backups. Use synthetic demo content only.
 
-The repository does not yet publish judge login credentials or automatically seed the live database. Create dedicated synthetic demo accounts and add safe demo instructions before handing in; never publish personal or reused passwords.
+Dedicated synthetic Owner and Viewer accounts have now been created in the live demo, and a harmless sample PDF has been uploaded for the Owner. With approval, the sample was granted READ access to the Viewer and then revoked; both results appeared in the Owner UI. After signing in as the Viewer, the shared-files list was empty and a direct GET to the revoked sample's download endpoint returned `Document not found`. Their passwords are intentionally not stored in this public repository; provide passwords only through a challenge-approved demo-credentials channel if one is available.
 
 ## Stack
 
@@ -52,7 +52,7 @@ GitHub Actions runs the backend unit suite and frontend production build on push
 - Backend unit suite: after the same-session revocation regression test was added, the user reported that `mvn test` completed successfully. The exact test count/output was not supplied, so no count is claimed here.
 - PostgreSQL role-hardening helper: the user ran it successfully against a disposable PostgreSQL 16 container on 2026-10-22. This did not change or validate the live Render database.
 - Public deployment: Render reported Live; the public `/api/health` endpoint returned `UP` on 2026-10-22.
-- Manual browser checks: the user confirmed public sign-in and the basic Owner-to-Viewer sharing workflow. On 2026-10-22, the live Administrator Activity page showed successful account creation, upload, sharing, metadata edit, and download events. Search, revoke, delete/restore, denied direct API requests, and audit-history behavior still need explicit verification on the public deployment.
+- Manual browser checks: the user confirmed public sign-in and the basic Owner-to-Viewer sharing workflow. On 2026-10-22, the live Administrator Activity page showed successful account creation, upload, sharing, metadata edit, and download events. In the dedicated demo Owner session, sample upload, title/category search, metadata edit, download, soft-delete, and restore all succeeded. READ grant and revocation for the dedicated Viewer were confirmed in the Owner UI. After Viewer sign-in, the empty shared-files list and direct HTTP download denial (`Document not found`) were verified.
 - Frontend production build passed during earlier feature work. GitHub Actions builds the frontend and runs backend tests but does not deploy.
 
 Run backend tests from `backend` with `mvn test`. Run the frontend production build from `frontend` with `npm run build`.

@@ -78,7 +78,9 @@ These entries summarize actual requests and review work from the development con
 
 **Output:** Corrected the sample-PDF generator path in the demo setup instructions and clarified that judge passwords should not be committed to the public repository. The user reported that the Maven suite passed after the new revocation test was added; the exact result count was not supplied. Render database role separation and dedicated judge-account setup remain pending.
 
-**Evidence and remaining work:** `git diff --check` and the frontend production build passed for the documentation update; the local commits were later confirmed synced with `origin/main`. The user confirmed the deployed flows work generally. Create and verify dedicated synthetic judge accounts, check revoke/delete/restore and denied access directly on the public app, and record the five-minute video before marking the hand-in complete.
+**Evidence and remaining work at that point:** `git diff --check` and the frontend production build passed for the documentation update; the local commits were later confirmed synced with `origin/main`. The user confirmed the deployed flows work generally. The follow-up below records subsequent account and workflow checks; the remaining Viewer access-denial verification and five-minute video are still pending.
+
+**Live demo follow-up:** The user created dedicated synthetic Owner and Viewer accounts; both were verified Active in the Administrator directory. In the Owner session, the checked-in harmless sample PDF uploaded, appeared in title search, saved updated title/category metadata, downloaded successfully, moved to **Recently deleted**, and restored. With the user's explicit approval, READ was granted on **Judge Demo - Sample PDF** to **TrustVault Demo Viewer** and the app displayed the grant; the grant was then revoked and the app displayed the revocation. The user signed in as the Viewer; the shared-files list showed no documents, and a direct GET to the sample's download endpoint returned `{"error":"Document not found."}`. The Viewer workspace was left open afterward.
 
 ## Reusable context
 

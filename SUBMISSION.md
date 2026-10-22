@@ -13,7 +13,7 @@ Audit events are recorded for authentication and document/account actions, inclu
 - After the same-session revocation regression test was added, the user reported that the backend test suite passed. The exact test count/output was not supplied, so no count is claimed here.
 - The user ran the PostgreSQL role-hardening helper successfully against an isolated disposable database on 2026-10-22. It does not mean the live Render database was hardened.
 - Render reported the service Live, and the public health endpoint returned `UP` on 2026-10-22.
-- The user confirmed that public sign-in and the basic Owner-to-Viewer sharing workflow worked. The live Administrator Activity page also showed successful account creation, upload, sharing, metadata edit, and download events. Search, revoke, deletion/recovery, denied direct HTTP attempts, and complete administrator audit review still need an explicit public-demo check.
+- The user confirmed that public sign-in and the basic Owner-to-Viewer sharing workflow worked. The live Administrator Activity page also showed successful account creation, upload, sharing, metadata edit, and download events. Dedicated synthetic Owner and Viewer accounts were created and shown Active. With the demo Owner, a harmless sample PDF was uploaded, found by title search, edited, downloaded, soft-deleted, and restored successfully. READ was granted to the dedicated Viewer and revoked; the Owner UI confirmed both. After Viewer sign-in, the shared-files list was empty and the sample's direct download endpoint returned `Document not found`.
 
 ## Permission model and known limitations
 
@@ -45,10 +45,13 @@ Folders, external/public links, document versions, automated retention/purge, mu
 - [x] Disposable PostgreSQL hardening check passed on 2026-10-22.
 - [x] Rerun the backend suite after adding the same-session revocation test (user reported success; exact count/output not supplied).
 - [ ] Add real-database and direct HTTP authorization coverage.
+- [x] Clearly document that the live Render database still uses one managed app/migration credential and that its audit-tamper protection is unverified.
 - [ ] Apply a restricted runtime/migration role boundary to a production-style database and verify audit protections there. This is not configured on the live Render managed database.
-- [ ] Create documented, dedicated synthetic judge accounts for all three roles and reproducible sample data. Do not publish personal or reused credentials.
-- [ ] Update the public README with the dedicated demo login details only after those accounts are created and tested.
-- [ ] Finish checking search, edit, delete/restore, direct unauthorized requests, and audit activity on the deployed app.
+- [x] Create dedicated synthetic Owner and Viewer accounts and a harmless sample PDF in the public demo; passwords are not in source control.
+- [ ] Provide judge credentials only through an authorized challenge channel, and verify the dedicated Viewer can sign in.
+- [x] Verify the Owner can grant and revoke READ access for the dedicated Viewer.
+- [x] Verify Viewer sign-in, empty shared-files list after revocation, and direct download denial.
+- [ ] Review the complete audit activity on the deployed app.
 - [ ] Record and review the five-minute demo video.
 - [ ] Correct prompt-history entries with commit references and push the final hand-in materials.
 - [ ] Plan for the free Render database's expiration and lack of backups; export demo evidence before expiry.
