@@ -2,6 +2,7 @@ package com.trustvault.security;
 
 import java.io.IOException;
 
+import com.trustvault.audit.AuditEventWriter;
 import com.trustvault.users.AuthenticatedUser;
 import com.trustvault.users.UserEntity;
 import com.trustvault.users.UserRepository;
@@ -17,9 +18,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 public class CurrentAccountFilter extends OncePerRequestFilter {
     private final UserRepository users;
+    private final AuditEventWriter audit;
 
-    public CurrentAccountFilter(UserRepository users) {
+    public CurrentAccountFilter(UserRepository users, AuditEventWriter audit) {
         this.users = users;
+        this.audit = audit;
     }
 
     @Override
@@ -30,6 +33,11 @@ public class CurrentAccountFilter extends OncePerRequestFilter {
                 && authentication.getPrincipal() instanceof AuthenticatedUser priorUser) {
             UserEntity current = users.findById(priorUser.getId()).orElse(null);
             if (current == null || !current.isActive()) {
+                try {
+                    audit.recordInactiveAccountRequest(priorUser.getId());
+                } catch (RuntimeException ignored) {
+                    // The request remains denied even if the audit store is unavailable.
+                }
                 SecurityContextHolder.clearContext();
                 var session = request.getSession(false);
                 if (session != null) session.invalidate();

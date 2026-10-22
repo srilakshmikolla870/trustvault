@@ -82,6 +82,14 @@ These entries summarize actual requests and review work from the development con
 
 **Live demo follow-up:** The user created dedicated synthetic Owner and Viewer accounts; both were verified Active in the Administrator directory. In the Owner session, the checked-in harmless sample PDF uploaded, appeared in title search, saved updated title/category metadata, downloaded successfully, moved to **Recently deleted**, and restored. With the user's explicit approval, READ was granted on **Judge Demo - Sample PDF** to **TrustVault Demo Viewer** and the app displayed the grant; the grant was then revoked and the app displayed the revocation. The user signed in as the Viewer; the shared-files list showed no documents, and a direct GET to the sample's download endpoint returned `{"error":"Document not found."}`. The Viewer workspace was left open afterward.
 
+## 2026-10-22 — HTTP security coverage and audit-denial events
+
+**Prompt summary:** Improve the security evidence for the challenge, strengthen live audit behavior where feasible, and push verified changes to GitHub and Render.
+
+**Output:** Added 9 MockMvc HTTP-boundary tests for cross-owner download denial, READ-only Viewer edit denial, Viewer grant/revoke denial, revoked-access denial before storage reads, inactive-session rejection, missing-CSRF rejection, denied Viewer access to administrator activity, sanitized activity output, and allowed Owner download. Added an audit-event shape test and minimal insert-only audit events for inactive sessions and CSRF rejection.
+
+**Evidence:** On 2026-10-22, all 37 backend tests passed locally (0 failures, 0 errors), including the new HTTP-boundary tests. These tests mock the database and storage and do not establish deployed PostgreSQL behavior. Render still uses one managed credential for runtime and Flyway; the disposable PostgreSQL role-hardening verification is not equivalent to live protection. A second Render credential by itself does not prove least privilege, so the live DB was not changed without verified SQL grants. Push/deployment status must be recorded after publication; do not mark them complete before verifying GitHub and Render.
+
 ## Reusable context
 
 TrustVault uses React, Java/Spring Boot, PostgreSQL, and session authentication. Deny document access by default. The server checks current ownership or a named per-document READ/EDIT grant on protected requests; roles alone do not grant access to files. Keep file bytes private, make revocation effective for the next request, audit allowed and denied sensitive actions, and never log secrets or file bytes. Review actual diffs and test results; distinguish source-level tests from database and live HTTP evidence. Do not claim Render's managed database has separate runtime/migration roles.

@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.csrf.CsrfException;
 
 @Configuration
 @EnableWebSecurity
@@ -109,12 +110,20 @@ public class SecurityConfiguration {
                     org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
                         .withDefaults().matcher("/api/**"))
                 .accessDeniedHandler((request, response, exception) -> {
-                    if (request.getRequestURI().startsWith("/api/admin/")) {
+                    var authentication = org.springframework.security.core.context.SecurityContextHolder
+                            .getContext().getAuthentication();
+                    UUID actorId = authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user
+                            ? user.getId() : null;
+                    if (exception instanceof CsrfException) {
                         try {
-                            var authentication = org.springframework.security.core.context.SecurityContextHolder
-                                    .getContext().getAuthentication();
-                            UUID actorId = authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser user
-                                    ? user.getId() : null;
+                            audit.recordDeniedCsrfRequest(actorId);
+                        } catch (RuntimeException auditFailure) {
+                            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+                            return;
+                        }
+                    }
+                    if (request.getRequestURI().startsWith("/api/admin/") && !(exception instanceof CsrfException)) {
+                        try {
                             audit.recordDeniedAdminAccess(actorId, "INSUFFICIENT_ROLE");
                         } catch (RuntimeException auditFailure) {
                             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
@@ -124,7 +133,7 @@ public class SecurityConfiguration {
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 }))
             .requestCache(cache -> cache.disable())
-            .addFilterBefore(new CurrentAccountFilter(users),
+            .addFilterBefore(new CurrentAccountFilter(users, audit),
                 org.springframework.security.web.access.intercept.AuthorizationFilter.class);
         return http.build();
     }

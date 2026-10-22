@@ -6,11 +6,12 @@ TrustVault is a PDF-sharing application with Administrator, Owner, and Viewer ro
 
 Document authorization is enforced by the Spring Boot service on each protected request. A document ID is not permission. Listings start from a visibility-scoped query, and download/edit/share/revoke/delete/restore operations check current account state, role, ownership, or grant as appropriate. No reusable public file URL is issued. Local bytes are kept outside the web root; the Render demo stores bytes in PostgreSQL.
 
-Audit events are recorded for authentication and document/account actions, including many denied requests. The Administrator can view recent entries. PostgreSQL triggers reject ordinary UPDATE, DELETE, and TRUNCATE on audit rows. The trigger and separate-role script passed a disposable PostgreSQL 16 check on 2026-10-22. The live Render database has **not** been given separate runtime and migration roles: it uses the managed database credential for both API and Flyway. Therefore the live demo does not yet prove the challenge's audit-tamper resistance standard. A database administrator remains trusted in the self-managed design.
+Audit events are recorded for authentication and document/account actions, including many denied requests. The Administrator can view recent entries. PostgreSQL triggers reject ordinary UPDATE, DELETE, and TRUNCATE on audit rows. The trigger and separate-role script passed a disposable PostgreSQL 16 check on 2026-10-22. The live Render database has **not** been given separate runtime and migration roles: the Blueprint uses one managed credential for both API and Flyway. A second credential by itself would not prove restricted SQL privileges. Therefore the live demo does not yet prove the challenge's audit-tamper resistance standard. A database administrator remains trusted in the self-managed design.
 
 ## What was checked
 
 - After the same-session revocation regression test was added, the user reported that the backend test suite passed. The exact test count/output was not supplied, so no count is claimed here.
+- On 2026-10-22, the backend suite was run in this workspace and passed: **37 tests, 0 failures, 0 errors**. This includes 9 MockMvc HTTP-boundary authorization tests and a safe audit-event shape test. These tests use mocked persistence and storage; they do not replace PostgreSQL integration or a full live production audit review.
 - The user ran the PostgreSQL role-hardening helper successfully against an isolated disposable database on 2026-10-22. It does not mean the live Render database was hardened.
 - Render reported the service Live, and the public health endpoint returned `UP` on 2026-10-22.
 - The user confirmed that public sign-in and the basic Owner-to-Viewer sharing workflow worked. The live Administrator Activity page also showed successful account creation, upload, sharing, metadata edit, and download events. Dedicated synthetic Owner and Viewer accounts were created and shown Active. With the demo Owner, a harmless sample PDF was uploaded, found by title search, edited, downloaded, soft-deleted, and restored successfully. READ was granted to the dedicated Viewer and revoked; the Owner UI confirmed both. After Viewer sign-in, the shared-files list was empty and the sample's direct download endpoint returned `Document not found`.
@@ -19,7 +20,7 @@ Audit events are recorded for authentication and document/account actions, inclu
 
 Permissions are per document, assigned by an Owner to a named active Viewer. READ permits viewing/downloading. EDIT includes READ and permits title/category changes. The backend reloads the current grant on each relevant request; revocation therefore denies the next new request. The app does not issue reusable download links.
 
-This is an MVP, not a production security certification. The automated authorization tests are mostly service-level unit tests; the JPQL visibility query and all HTTP/CSRF routes have not been comprehensively exercised against a real database. PDF validation checks extension, declared MIME type, size, and the `%PDF-` header; it does not parse the complete PDF structure. There is no login rate limiting. The free Render database expires after 30 days and has no backups. The live deployment uses one managed database credential for both app traffic and migrations, so audit triggers are not an independent security boundary against the database credential holder.
+This is an MVP, not a production security certification. The 2026-10-22 suite includes HTTP-boundary checks for access control, CSRF rejection, inactive sessions, and safe activity output, but uses mocked persistence; the JPQL visibility query and all routes have not been comprehensively exercised against a real database. PDF validation checks extension, declared MIME type, size, and the `%PDF-` header; it does not parse the complete PDF structure. There is no login rate limiting. The free Render database expires after 30 days and has no backups. The live deployment uses one managed database credential for both app traffic and migrations, so audit triggers are not an independent security boundary against the database credential holder.
 
 Folders, external/public links, document versions, automated retention/purge, multi-organization tenancy, and AI access suggestions are deliberately out of scope. No AI feature is included in the product. If access suggestions are added later, a person must approve each grant and the decision must be audited.
 
@@ -40,18 +41,20 @@ Folders, external/public links, document versions, automated retention/purge, mu
 - [x] Named per-document READ/EDIT grants and revocation are implemented.
 - [x] Server-side ownership/current-grant checks and cross-user service tests exist.
 - [x] Audit activity view, threat register, API documentation, migrations, local setup, and deployment instructions exist.
-- [x] Public GitHub repository and public HTTPS demo are available: https://trustvault-demo-iy81.onrender.com
+- [ ] Repository visibility follows the challenge's final hand-in policy; the repository is currently private pending the user's deadline/policy decision.
+- [x] Public HTTPS demo is available: https://trustvault-demo-iy81.onrender.com
 - [x] Public health endpoint returned `UP`; user confirmed sign-in and basic Owner-to-Viewer sharing workflow.
 - [x] Disposable PostgreSQL hardening check passed on 2026-10-22.
 - [x] Rerun the backend suite after adding the same-session revocation test (user reported success; exact count/output not supplied).
-- [ ] Add real-database and direct HTTP authorization coverage.
+- [x] Add direct HTTP-boundary authorization coverage for cross-owner access, Viewer edit/share/revoke denial, revoked access, inactive sessions, CSRF rejection, admin-route denial, safe audit output, and allowed Owner download (37-test suite passed 2026-10-22).
+- [ ] Add real-PostgreSQL authorization integration coverage for the visibility query and role/grant workflows.
 - [x] Clearly document that the live Render database still uses one managed app/migration credential and that its audit-tamper protection is unverified.
 - [ ] Apply a restricted runtime/migration role boundary to a production-style database and verify audit protections there. This is not configured on the live Render managed database.
 - [x] Create dedicated synthetic Owner and Viewer accounts and a harmless sample PDF in the public demo; passwords are not in source control.
 - [ ] Provide judge credentials only through an authorized challenge channel, and verify the dedicated Viewer can sign in.
 - [x] Verify the Owner can grant and revoke READ access for the dedicated Viewer.
 - [x] Verify Viewer sign-in, empty shared-files list after revocation, and direct download denial.
-- [ ] Review the complete audit activity on the deployed app.
+- [ ] Review the complete audit activity on the deployed app; local automated tests assert representative allow/deny event calls and that inactive-session/CSRF event SQL contains no secrets, file bytes, or storage paths.
 - [ ] Record and review the five-minute demo video.
 - [ ] Correct prompt-history entries with commit references and push the final hand-in materials.
 - [ ] Plan for the free Render database's expiration and lack of backups; export demo evidence before expiry.

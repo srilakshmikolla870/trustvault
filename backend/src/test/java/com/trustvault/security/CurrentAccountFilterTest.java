@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.trustvault.audit.AuditEventWriter;
 import com.trustvault.users.AuthenticatedUser;
 import com.trustvault.users.UserEntity;
 import com.trustvault.users.UserRepository;
@@ -26,6 +27,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 class CurrentAccountFilterTest {
     private final UserRepository users = org.mockito.Mockito.mock(UserRepository.class);
+    private final AuditEventWriter audit = org.mockito.Mockito.mock(AuditEventWriter.class);
 
     @AfterEach
     void clearSecurityContext() {
@@ -48,13 +50,14 @@ class CurrentAccountFilterTest {
         AtomicBoolean continued = new AtomicBoolean(false);
         FilterChain chain = (requestToContinue, responseToContinue) -> continued.set(true);
 
-        new CurrentAccountFilter(users).doFilter(request, response, chain);
+        new CurrentAccountFilter(users, audit).doFilter(request, response, chain);
 
         assertEquals(401, response.getStatus());
         assertTrue(session.isInvalid());
         assertFalse(continued.get());
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(users).findById(id);
+        verify(audit).recordInactiveAccountRequest(id);
     }
 
     @Test
@@ -69,7 +72,7 @@ class CurrentAccountFilterTest {
         AtomicBoolean continued = new AtomicBoolean(false);
         FilterChain chain = (requestToContinue, responseToContinue) -> continued.set(true);
 
-        new CurrentAccountFilter(users).doFilter(new MockHttpServletRequest(), new MockHttpServletResponse(), chain);
+        new CurrentAccountFilter(users, audit).doFilter(new MockHttpServletRequest(), new MockHttpServletResponse(), chain);
 
         AuthenticatedUser refreshed = (AuthenticatedUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         assertEquals(UserRole.VIEWER, refreshed.getRole());

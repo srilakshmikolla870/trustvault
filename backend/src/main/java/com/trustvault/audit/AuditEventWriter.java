@@ -45,6 +45,30 @@ public class AuditEventWriter {
                 UUID.randomUUID(), actorId, reason, UUID.randomUUID().toString());
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordDeniedCsrfRequest(UUID actorId) {
+        jdbc.update("""
+                INSERT INTO audit_events
+                    (id, occurred_at, actor_user_id, action, target_type, target_id,
+                     outcome, reason_code, request_id, metadata)
+                VALUES (?, CURRENT_TIMESTAMP, ?, 'CSRF_REJECTED', 'REQUEST', NULL,
+                        'DENIED', 'CSRF_TOKEN_MISSING_OR_INVALID', ?, '{}'::jsonb)
+                """,
+                UUID.randomUUID(), actorId, UUID.randomUUID().toString());
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordInactiveAccountRequest(UUID actorId) {
+        jdbc.update("""
+                INSERT INTO audit_events
+                    (id, occurred_at, actor_user_id, action, target_type, target_id,
+                     outcome, reason_code, request_id, metadata)
+                VALUES (?, CURRENT_TIMESTAMP, ?, 'AUTH_SESSION', 'USER', ?,
+                        'DENIED', 'ACCOUNT_INACTIVE', ?, '{}'::jsonb)
+                """,
+                UUID.randomUUID(), actorId, actorId, UUID.randomUUID().toString());
+    }
+
     public void recordDocumentEvent(UUID actorId, UUID documentId, String action, String outcome, String reason) {
         insertDocumentEvent(actorId, documentId, action, outcome, reason);
     }
