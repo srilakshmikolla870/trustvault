@@ -18,7 +18,7 @@ On 2026-10-22, the local Docker Compose API health route returned `UP`. The user
 
 ## Public demo on a Docker server
 
-The Compose production profile is designed for a small Linux virtual server that you control, such as a DigitalOcean Droplet. This keeps PostgreSQL in the existing Docker stack, where the tested role-hardening script can run with the required database administrator. A managed database that does not grant superuser privileges is not compatible with that script as written. DigitalOcean offers Docker-ready Droplets; its current Basic Droplet pricing starts at $4/month, while a 2 GiB / 2 vCPU option is listed at $18/month. Check the live price and choose a size that fits the app before creating anything. [DigitalOcean Docker image](https://docs.digitalocean.com/products/marketplace/catalog/docker/), [Droplet pricing](https://www.digitalocean.com/pricing/droplets).
+The Compose production profile is designed for a Linux virtual server that you control. This keeps PostgreSQL in the existing Docker stack, where the tested role-hardening script can run with the required database administrator. A managed database that does not grant the privileges required by that script is not compatible as written. Creating a server can incur charges; check the provider's current pricing and select a size that fits the app before creating anything.
 
 1. Create a Docker-ready Ubuntu server in your hosting account. Use SSH key access. The provider’s dashboard shows the server’s public IP. Creating a server starts billing.
 2. Register or use a domain you control. Add an `A` record for the domain to the server IP. In the provider firewall, allow inbound SSH from your IP and ports 80 and 443 from the internet. Do not expose PostgreSQL port 5432.
