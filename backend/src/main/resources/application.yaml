@@ -11,6 +11,9 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    url: ${FLYWAY_URL:${DB_URL:jdbc:postgresql://localhost:5432/trustvault}}
+    user: ${FLYWAY_USERNAME:${DB_USERNAME:trustvault_app}}
+    password: ${FLYWAY_PASSWORD:${DB_PASSWORD:}}
   servlet:
     multipart:
       max-file-size: 10MB

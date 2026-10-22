@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 
 import com.trustvault.audit.AuditEventWriter;
 import com.trustvault.users.UserEntity;
@@ -56,7 +58,7 @@ public class DocumentService {
         try {
             var saved = documents.saveAndFlush(entity);
             audit.recordDocumentEvent(actorId, saved.getId(), "DOCUMENT_UPLOAD", "ALLOWED", "UPLOAD_SUCCEEDED");
-            return summary(saved);
+            return summary(saved, true, true, user.getDisplayName(), user.getEmail());
         } catch (RuntimeException exception) {
             try { storage.delete(key); } catch (IOException ignored) { }
             throw exception;
@@ -65,17 +67,57 @@ public class DocumentService {
 
     @Transactional
     public List<DocumentSummary> listOwned(UUID actorId) {
+        return listOwned(actorId, null, null, null, null, null);
+    }
+
+    @Transactional
+    public List<DocumentSummary> listOwned(UUID actorId, String query, String ownerQuery, String categoryQuery,
+            LocalDate from, LocalDate to) {
         var user = users.findById(actorId).orElseThrow(NotFoundException::new);
         if (!user.isActive() || user.getRole() == UserRole.ADMINISTRATOR) {
             audit.recordIndependentDocumentEvent(actorId, null, "DOCUMENT_LIST", "DENIED", "DOCUMENT_ROLE_REQUIRED");
             return List.of();
         }
         audit.recordDocumentEvent(actorId, null, "DOCUMENT_LIST", "ALLOWED", "AUTHORIZED_LIST_SUCCEEDED");
+        // Establish the caller's authorization scope before applying any search criteria.
+        // This prevents search terms or counts from revealing inaccessible document metadata.
         return documents.findAllVisibleTo(actorId).stream().map(document -> {
             boolean owner = document.getOwnerId().equals(actorId);
             var grant = owner ? null : grants.findCurrentGrant(document.getId(), actorId).orElse(null);
-            return summary(document, owner, owner || (grant != null && grant.getPermission() == GrantPermission.EDIT));
-        }).toList();
+            var documentOwner = owner ? user : users.findById(document.getOwnerId()).orElse(null);
+            return summary(document, owner, owner || (grant != null && grant.getPermission() == GrantPermission.EDIT),
+                    documentOwner == null ? "" : documentOwner.getDisplayName(),
+                    documentOwner == null ? "" : documentOwner.getEmail());
+        }).filter(document -> contains(document.title(), query) || contains(document.originalFilename(), query))
+          .filter(document -> contains(document.ownerDisplayName(), ownerQuery) || contains(document.ownerEmail(), ownerQuery))
+          .filter(document -> contains(document.category(), categoryQuery))
+          .filter(document -> from == null || (document.createdAt() != null
+                  && !document.createdAt().atZone(ZoneOffset.UTC).toLocalDate().isBefore(from)))
+          .filter(document -> to == null || (document.createdAt() != null
+                  && !document.createdAt().atZone(ZoneOffset.UTC).toLocalDate().isAfter(to)))
+          .toList();
+    }
+
+    @Transactional
+    public List<DocumentSummary> listDeleted(UUID actorId) {
+        requireOwner(actorId, null, "DOCUMENT_LIST_DELETED", "OWNER_REQUIRED");
+        return documents.findAllByOwnerIdAndStatusOrderByCreatedAtDesc(actorId, "DELETED").stream()
+                .map(document -> summary(document, true, true, "", "")).toList();
+    }
+
+    @Transactional
+    public DocumentSummary restore(UUID actorId, UUID documentId) {
+        requireOwner(actorId, documentId, "DOCUMENT_RESTORE", "OWNER_REQUIRED");
+        var document = documents.findByIdAndStatus(documentId, "DELETED").orElse(null);
+        if (document == null || !document.getOwnerId().equals(actorId)) {
+            audit.recordIndependentDocumentEvent(actorId, documentId, "DOCUMENT_RESTORE", "DENIED", "NOT_AUTHORIZED_OR_NOT_FOUND");
+            throw new NotFoundException();
+        }
+        document.restore();
+        var saved = documents.save(document);
+        audit.recordDocumentEvent(actorId, documentId, "DOCUMENT_RESTORE", "ALLOWED", "DOCUMENT_RESTORED_NO_GRANTS");
+        var owner = users.findById(actorId).orElse(null);
+        return summary(saved, true, true, owner == null ? "" : owner.getDisplayName(), owner == null ? "" : owner.getEmail());
     }
 
     @Transactional
@@ -160,7 +202,20 @@ public class DocumentService {
         document.updateMetadata(title.trim(), category.trim());
         var saved = documents.save(document);
         audit.recordDocumentEvent(actorId, documentId, "DOCUMENT_EDIT", "ALLOWED", "METADATA_UPDATED");
-        return summary(saved, owner, true);
+        var documentOwner = users.findById(saved.getOwnerId()).orElse(null);
+        return summary(saved, owner, true, documentOwner == null ? "" : documentOwner.getDisplayName(),
+                documentOwner == null ? "" : documentOwner.getEmail());
+    }
+
+    @Transactional
+    public void delete(UUID actorId, UUID documentId) {
+        var document = requireOwnedDocument(actorId, documentId, "DOCUMENT_DELETE");
+        var activeGrants = grants.findAllByDocumentIdAndRevokedAtIsNullOrderByGrantedAtDesc(documentId);
+        activeGrants.forEach(DocumentGrantEntity::revoke);
+        grants.saveAll(activeGrants);
+        document.softDelete(Instant.now());
+        documents.save(document);
+        audit.recordDocumentEvent(actorId, documentId, "DOCUMENT_DELETE", "ALLOWED", "DOCUMENT_SOFT_DELETED");
     }
 
     private void requireOwner(UUID actorId, UUID documentId, String action, String reason) {
@@ -225,16 +280,27 @@ public class DocumentService {
     }
 
     private static DocumentSummary summary(DocumentEntity document) {
-        return summary(document, true, true);
+        return summary(document, true, true, "", "");
     }
 
     private static DocumentSummary summary(DocumentEntity document, boolean canManageAccess, boolean canEdit) {
+        return summary(document, canManageAccess, canEdit, "", "");
+    }
+
+    private static DocumentSummary summary(DocumentEntity document, boolean canManageAccess, boolean canEdit,
+            String ownerDisplayName, String ownerEmail) {
         return new DocumentSummary(document.getId(), document.getTitle(), document.getCategory(),
-                document.getOriginalFilename(), document.getContentType(), document.getSizeBytes(), document.getCreatedAt(), canManageAccess, canEdit);
+                document.getOriginalFilename(), document.getContentType(), document.getSizeBytes(), document.getCreatedAt(),
+                canManageAccess, canEdit, ownerDisplayName, ownerEmail);
+    }
+
+    private static boolean contains(String value, String query) {
+        return query == null || query.isBlank() || (value != null && value.toLowerCase(Locale.ROOT).contains(query.trim().toLowerCase(Locale.ROOT)));
     }
 
     public record DocumentSummary(UUID id, String title, String category, String originalFilename,
-            String contentType, long sizeBytes, java.time.Instant createdAt, boolean canManageAccess, boolean canEdit) {}
+            String contentType, long sizeBytes, java.time.Instant createdAt, boolean canManageAccess, boolean canEdit,
+            String ownerDisplayName, String ownerEmail) {}
     public record ViewerOption(UUID id, String displayName, String email) {}
     public record GrantSummary(UUID userId, String displayName, String email, GrantPermission permission) {}
     public record DownloadedDocument(String filename, byte[] bytes) {}

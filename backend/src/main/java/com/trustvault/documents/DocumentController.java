@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.LocalDate;
 
 import com.trustvault.users.AuthenticatedUser;
 import org.springframework.http.CacheControl;
@@ -34,8 +35,19 @@ public class DocumentController {
     public DocumentController(DocumentService documents) { this.documents = documents; }
 
     @GetMapping
-    List<DocumentService.DocumentSummary> list(@AuthenticationPrincipal AuthenticatedUser actor) {
-        return documents.listOwned(actor.getId());
+    List<DocumentService.DocumentSummary> list(@AuthenticationPrincipal AuthenticatedUser actor,
+            @RequestParam(required = false) String q, @RequestParam(required = false) String owner,
+            @RequestParam(required = false) String category, @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to) {
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new DocumentService.InvalidDocumentException("The start date must be on or before the end date.");
+        }
+        return documents.listOwned(actor.getId(), q, owner, category, from, to);
+    }
+
+    @GetMapping("/deleted")
+    List<DocumentService.DocumentSummary> listDeleted(@AuthenticationPrincipal AuthenticatedUser actor) {
+        return documents.listDeleted(actor.getId());
     }
 
     @GetMapping("/eligible-viewers")
@@ -66,6 +78,17 @@ public class DocumentController {
             @PathVariable UUID documentId, @RequestBody MetadataRequest request) {
         if (request == null) throw new DocumentService.InvalidDocumentException("Provide a title and category.");
         return documents.editMetadata(actor.getId(), documentId, request.title(), request.category());
+    }
+
+    @DeleteMapping("/{documentId}")
+    ResponseEntity<Void> delete(@AuthenticationPrincipal AuthenticatedUser actor, @PathVariable UUID documentId) {
+        documents.delete(actor.getId(), documentId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{documentId}/restore")
+    DocumentService.DocumentSummary restore(@AuthenticationPrincipal AuthenticatedUser actor, @PathVariable UUID documentId) {
+        return documents.restore(actor.getId(), documentId);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

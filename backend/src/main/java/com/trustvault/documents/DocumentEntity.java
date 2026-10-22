@@ -55,9 +55,20 @@ public class DocumentEntity {
     public String getStorageKey() { return storageKey; }
     public String getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getDeletedAt() { return deletedAt; }
     public void updateMetadata(String title, String category) {
         this.title = title;
         this.category = category;
+        this.updatedAt = Instant.now();
+    }
+    public void softDelete(Instant when) {
+        this.status = "DELETED";
+        this.deletedAt = when;
+        this.updatedAt = when;
+    }
+    public void restore() {
+        this.status = "ACTIVE";
+        this.deletedAt = null;
         this.updatedAt = Instant.now();
     }
 }

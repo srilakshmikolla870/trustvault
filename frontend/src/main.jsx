@@ -15,6 +15,7 @@ const iconPaths = {
   close: <><path d="m18 6-12 12M6 6l12 12" /></>,
   arrow: <><path d="M5 12h14M13 6l6 6-6 6" /></>,
   back: <><path d="M19 12H5M12 19l-7-7 7-7" /></>,
+  history: <><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5M12 7v5l3 2" /></>,
   file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13h8M8 17h8" /></>,
   download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5M12 15V3" /></>,
 };
@@ -28,7 +29,7 @@ function initials(name = '') {
 }
 
 function App() {
-  const [adminPage, setAdminPage] = useState(() => window.location.hash === '#accounts' ? 'accounts' : 'overview');
+  const [adminPage, setAdminPage] = useState(() => window.location.hash.slice(1) === 'accounts' ? 'accounts' : window.location.hash.slice(1) === 'activity' ? 'activity' : 'overview');
   const [csrf, setCsrf] = useState('');
   const [user, setUser] = useState(null);
   const [email, setEmail] = useState('');
@@ -39,23 +40,33 @@ function App() {
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminMessage, setAdminMessage] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
+  const [activityEntries, setActivityEntries] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityMessage, setActivityMessage] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [accountStatusFilter, setAccountStatusFilter] = useState('ALL');
   const [documents, setDocuments] = useState([]);
+  const [deletedDocuments, setDeletedDocuments] = useState([]);
+  const [documentSearch, setDocumentSearch] = useState('');
+  const [documentOwnerSearch, setDocumentOwnerSearch] = useState('');
+  const [documentCategorySearch, setDocumentCategorySearch] = useState('');
+  const [documentFromDate, setDocumentFromDate] = useState('');
+  const [documentToDate, setDocumentToDate] = useState('');
   const [eligibleViewers, setEligibleViewers] = useState([]);
   const [viewerOptionsFailed, setViewerOptionsFailed] = useState(false);
   const [documentGrants, setDocumentGrants] = useState({});
   const [shareSelections, setShareSelections] = useState({});
   const [documentBusy, setDocumentBusy] = useState(false);
   const [documentMessage, setDocumentMessage] = useState('');
+  const [documentEditor, setDocumentEditor] = useState(null);
   const [documentForm, setDocumentForm] = useState({ title: '', category: '', file: null });
   const documentFileInput = useRef(null);
   const [newUser, setNewUser] = useState({ email: '', displayName: '', role: 'OWNER', password: '' });
 
   useEffect(() => {
-    const syncPageFromHash = () => setAdminPage(window.location.hash === '#accounts' ? 'accounts' : 'overview');
+    const syncPageFromHash = () => setAdminPage(window.location.hash.slice(1) === 'accounts' ? 'accounts' : window.location.hash.slice(1) === 'activity' ? 'activity' : 'overview');
     window.addEventListener('hashchange', syncPageFromHash);
     return () => window.removeEventListener('hashchange', syncPageFromHash);
   }, []);
@@ -99,6 +110,34 @@ function App() {
       .finally(() => { if (active) setAdminLoading(false); });
     return () => { active = false; };
   }, [user]);
+
+  useEffect(() => {
+    if (user?.role !== 'OWNER') { setDeletedDocuments([]); return; }
+    let active = true;
+    fetch('/api/documents/deleted')
+      .then(async response => {
+        if (!response.ok) throw new Error('Could not load deleted documents. Refresh the page and try again.');
+        return response.json();
+      })
+      .then(items => { if (active) setDeletedDocuments(items); })
+      .catch(error => { if (active) setDocumentMessage(error.message); });
+    return () => { active = false; };
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.role !== 'ADMINISTRATOR' || adminPage !== 'activity') return;
+    let active = true;
+    setActivityLoading(true); setActivityMessage('');
+    fetch('/api/admin/activity?limit=100')
+      .then(async response => {
+        if (!response.ok) throw new Error('Could not load activity. Refresh the page and try again.');
+        return response.json();
+      })
+      .then(entries => { if (active) setActivityEntries(entries); })
+      .catch(error => { if (active) setActivityMessage(error.message); })
+      .finally(() => { if (active) setActivityLoading(false); });
+    return () => { active = false; };
+  }, [user, adminPage]);
 
   useEffect(() => {
     if (!['OWNER', 'VIEWER'].includes(user?.role)) return;
@@ -159,6 +198,58 @@ function App() {
     finally { setDocumentBusy(false); }
   }
 
+  async function saveDocumentMetadata(event) {
+    event.preventDefault();
+    if (!documentEditor) return;
+    setDocumentBusy(true); setDocumentMessage('');
+    try {
+      const token = csrf || await refreshCsrf();
+      const response = await fetch(`/api/documents/${documentEditor.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+        body: JSON.stringify({ title: documentEditor.title, category: documentEditor.category }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not update this document.');
+      setDocuments(current => current.map(item => item.id === result.id ? { ...item, ...result } : item));
+      setDocumentEditor(null);
+      setDocumentMessage('Document details updated.');
+    } catch (error) { setDocumentMessage(error.message); }
+    finally { setDocumentBusy(false); }
+  }
+
+  async function deleteDocument(document) {
+    if (!window.confirm(`Delete “${document.title}”? It will disappear from active lists and viewers will lose access.`)) return;
+    setDocumentBusy(true); setDocumentMessage('');
+    try {
+      const token = csrf || await refreshCsrf();
+      const response = await fetch(`/api/documents/${document.id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': token } });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not delete this document.');
+      setDocuments(current => current.filter(item => item.id !== document.id));
+      setDeletedDocuments(current => [document, ...current.filter(item => item.id !== document.id)]);
+      setDocumentGrants(current => ({ ...current, [document.id]: [] }));
+      setDocumentEditor(current => current?.id === document.id ? null : current);
+      setDocumentMessage('Document deleted. Viewer access is now blocked.');
+    } catch (error) { setDocumentMessage(error.message); }
+    finally { setDocumentBusy(false); }
+  }
+
+  async function restoreDocument(document) {
+    setDocumentBusy(true); setDocumentMessage('');
+    try {
+      const token = csrf || await refreshCsrf();
+      const response = await fetch(`/api/documents/${document.id}/restore`, { method: 'POST', headers: { 'X-CSRF-TOKEN': token } });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Could not restore this document.');
+      setDeletedDocuments(current => current.filter(item => item.id !== document.id));
+      setDocuments(current => [result, ...current.filter(item => item.id !== result.id)]);
+      setDocumentGrants(current => ({ ...current, [document.id]: [] }));
+      setDocumentMessage('Document restored. Share it again to give Viewers access.');
+    } catch (error) { setDocumentMessage(error.message); }
+    finally { setDocumentBusy(false); }
+  }
+
   const filteredUsers = useMemo(() => adminUsers.filter(account => {
     const search = searchTerm.trim().toLowerCase();
     const matchesSearch = !search || `${account.displayName} ${account.email}`.toLowerCase().includes(search);
@@ -167,12 +258,23 @@ function App() {
     return matchesSearch && matchesRole && matchesStatus;
   }), [accountStatusFilter, adminUsers, roleFilter, searchTerm]);
 
+  const teamAccounts = useMemo(() => adminUsers.filter(account => account.role !== 'ADMINISTRATOR'), [adminUsers]);
   const accountCounts = useMemo(() => ({
-    total: adminUsers.filter(account => account.role !== 'ADMINISTRATOR').length,
+    total: teamAccounts.length,
     owners: adminUsers.filter(account => account.role === 'OWNER').length,
     viewers: adminUsers.filter(account => account.role === 'VIEWER').length,
-    active: adminUsers.filter(account => account.role !== 'ADMINISTRATOR' && account.active).length,
-  }), [adminUsers]);
+    active: teamAccounts.filter(account => account.active).length,
+  }), [adminUsers, teamAccounts]);
+
+  const filteredDocuments = useMemo(() => documents.filter(document => {
+    const matches = (value, query) => !query.trim() || (value || '').toLowerCase().includes(query.trim().toLowerCase());
+    const created = document.createdAt ? new Date(document.createdAt).toISOString().slice(0, 10) : '';
+    return matches(`${document.title} ${document.originalFilename}`, documentSearch)
+      && matches(`${document.ownerDisplayName || ''} ${document.ownerEmail || ''}`, documentOwnerSearch)
+      && matches(document.category, documentCategorySearch)
+      && (!documentFromDate || created >= documentFromDate)
+      && (!documentToDate || created <= documentToDate);
+  }), [documents, documentSearch, documentOwnerSearch, documentCategorySearch, documentFromDate, documentToDate]);
 
   async function createAccount(event) {
     event.preventDefault();
@@ -321,16 +423,16 @@ function App() {
       <a className="brand brand-light sidebar-brand" href="#overview"><span className="brand-mark"><Icon name="shield" size={21} /></span><span>trustvault<span className="brand-period">.</span></span></a>
       <div className="workspace-switch" aria-label="Current organization: My organization"><div className="workspace-avatar"><Icon name="shield" size={16} /></div><div><span className="workspace-overline">CURRENT ORGANIZATION</span><strong>My organization</strong><span className="workspace-description">Your TrustVault workspace</span></div></div>
       <div className="nav-section-label">WORKSPACE</div>
-      <nav className="side-nav" aria-label="Main navigation"><a className={`nav-link ${!isAdmin || adminPage === 'overview' ? 'active' : ''}`} href="#overview" onClick={() => setAdminPage('overview')} aria-current={!isAdmin || adminPage === 'overview' ? 'page' : undefined}><Icon name="grid" /><span>Overview</span>{(!isAdmin || adminPage === 'overview') && <span className="nav-indicator" />}</a>{isAdmin && <a className={`nav-link ${adminPage === 'accounts' ? 'active' : ''}`} href="#accounts" onClick={() => setAdminPage('accounts')} aria-current={adminPage === 'accounts' ? 'page' : undefined}><Icon name="users" /><span>Accounts</span><span className="nav-count">{accountCounts.total}</span>{adminPage === 'accounts' && <span className="nav-indicator" />}</a>}</nav>
+      <nav className="side-nav" aria-label="Main navigation"><a className={`nav-link ${!isAdmin || adminPage === 'overview' ? 'active' : ''}`} href="#overview" onClick={() => setAdminPage('overview')} aria-current={!isAdmin || adminPage === 'overview' ? 'page' : undefined}><Icon name="grid" /><span>Overview</span>{(!isAdmin || adminPage === 'overview') && <span className="nav-indicator" />}</a>{isAdmin && <><a className={`nav-link ${adminPage === 'accounts' ? 'active' : ''}`} href="#accounts" onClick={() => setAdminPage('accounts')} aria-current={adminPage === 'accounts' ? 'page' : undefined}><Icon name="users" /><span>Accounts</span><span className="nav-count">{accountCounts.total}</span>{adminPage === 'accounts' && <span className="nav-indicator" />}</a><a className={`nav-link ${adminPage === 'activity' ? 'active' : ''}`} href="#activity" onClick={() => setAdminPage('activity')} aria-current={adminPage === 'activity' ? 'page' : undefined}><Icon name="history" /><span>Activity</span>{adminPage === 'activity' && <span className="nav-indicator" />}</a></>}</nav>
       <aside className="sidebar-note" aria-label="How access is protected"><span className="note-mark"><Icon name="lock" size={15} /></span><strong>Your files stay protected</strong><p>Owners choose which Viewers can access each document. Administrators manage accounts but cannot open document files.</p></aside>
       <div className="sidebar-bottom"><div className="online-dot" /> <span>Workspace available</span><button type="button" className="sidebar-logout" onClick={signOut} disabled={busy} aria-label="Sign out"><Icon name="logout" size={17} /></button></div>
     </aside>
 
     <main className="main-area" id="overview">
-      <header className="topbar"><div className="breadcrumb"><span>Workspace</span><span className="crumb-slash">/</span><strong>{isAdmin && adminPage === 'accounts' ? 'Accounts' : 'Overview'}</strong></div><div className="topbar-actions"><div className="topbar-date"><span className="date-dot" /> PRIVATE WORKSPACE</div><div className="topbar-divider" /><div className="user-menu"><div className="avatar">{initials(user.displayName)}</div><div className="user-menu-text"><strong>{user.displayName}</strong><span>{roleName}</span></div><button type="button" className="topbar-signout" onClick={signOut} disabled={busy}><Icon name="logout" size={16} /><span>Sign out</span></button></div></div></header>
+      <header className="topbar"><div className="breadcrumb"><span>Workspace</span><span className="crumb-slash">/</span><strong>{isAdmin && adminPage === 'accounts' ? 'Accounts' : isAdmin && adminPage === 'activity' ? 'Activity' : 'Overview'}</strong></div><div className="topbar-actions"><div className="topbar-date"><span className="date-dot" /> PRIVATE WORKSPACE</div><div className="topbar-divider" /><div className="user-menu"><div className="avatar">{initials(user.displayName)}</div><div className="user-menu-text"><strong>{user.displayName}</strong><span>{roleName}</span></div><button type="button" className="topbar-signout" onClick={signOut} disabled={busy}><Icon name="logout" size={16} /><span>Sign out</span></button></div></div></header>
 
       <div className="content-wrap">
-        {isAdmin && adminPage === 'accounts' ? <section className="admin-page-heading"><button type="button" className="back-overview-button" onClick={openOverview}><Icon name="back" size={15} /> Back to overview</button><div className="page-eyebrow"><span className="eyebrow-line" /> PEOPLE & ACCESS</div><h1>Accounts</h1><p>View and manage the people in your TrustVault workspace.</p></section> : <section className="welcome-row"><div><div className="page-eyebrow"><span className="eyebrow-line" /> TRUSTVAULT WORKSPACE</div><h1>{isAdmin ? 'Good to see you,' : 'Welcome to your workspace,'}<br /><span>{user.displayName.split(' ')[0]}.</span></h1><p>{isAdmin ? 'A clear view of the people who belong here.' : 'Your account is ready. Your document workspace is being prepared.'}</p></div><div className="welcome-art" aria-hidden="true"><div className="art-ring ring-a" /><div className="art-ring ring-b" /><div className="art-shield"><Icon name="shield" size={36} /></div><span className="art-spark spark-a" /><span className="art-spark spark-b" /></div></section>}
+        {isAdmin && adminPage !== 'overview' ? <section className="admin-page-heading"><button type="button" className="back-overview-button" onClick={openOverview}><Icon name="back" size={15} /> Back to overview</button><div className="page-eyebrow"><span className="eyebrow-line" /> {adminPage === 'accounts' ? 'PEOPLE & ACCESS' : 'WORKSPACE HISTORY'}</div><h1>{adminPage === 'accounts' ? 'Accounts' : 'Activity'}</h1><p>{adminPage === 'accounts' ? 'View and manage the people in your TrustVault workspace.' : 'A recent record of sign-ins, document access, sharing, and account changes.'}</p></section> : <section className="welcome-row"><div><div className="page-eyebrow"><span className="eyebrow-line" /> TRUSTVAULT WORKSPACE</div><h1>{isAdmin ? 'Good to see you,' : 'Welcome to your workspace,'}<br /><span>{user.displayName.split(' ')[0]}.</span></h1><p>{isAdmin ? 'A clear view of the people who belong here.' : 'Your account is ready. Your document workspace is being prepared.'}</p></div><div className="welcome-art" aria-hidden="true"><div className="art-ring ring-a" /><div className="art-ring ring-b" /><div className="art-shield"><Icon name="shield" size={36} /></div><span className="art-spark spark-a" /><span className="art-spark spark-b" /></div></section>}
 
         {isAdmin ? <>
           {adminPage === 'overview' && <section className="metrics-grid" aria-label="Account summary">
@@ -338,6 +440,12 @@ function App() {
             <button type="button" className="metric-card metric-card-action" onClick={() => openAccounts('OWNER')} aria-label={`Show ${accountCounts.owners} owner accounts`}><div className="metric-top"><span>Owners</span><span className="metric-icon metric-icon-blue"><Icon name="shield" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.owners.toString().padStart(2, '0')}</div><div className="metric-foot">Manage their own workspace · View owners</div></button>
             <button type="button" className="metric-card metric-card-action" onClick={() => openAccounts('VIEWER')} aria-label={`Show ${accountCounts.viewers} viewer accounts`}><div className="metric-top"><span>Viewers</span><span className="metric-icon metric-icon-lilac"><Icon name="eye" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.viewers.toString().padStart(2, '0')}</div><div className="metric-foot">Access is individually granted · View viewers</div></button>
             <button type="button" className="metric-card metric-card-action" onClick={() => openAccounts('TEAM', 'ACTIVE')} aria-label={`Show ${accountCounts.active} active team accounts`}><div className="metric-top"><span>Active accounts</span><span className="metric-icon metric-icon-green"><Icon name="lock" /></span></div><div className="metric-value">{adminLoading ? '—' : accountCounts.active.toString().padStart(2, '0')}</div><div className="metric-foot"><span className="metric-pip" /> Ready to sign in · View active</div></button>
+          </section>}
+
+          {adminPage === 'overview' && <section className="overview-team-card" aria-labelledby="overview-team-title">
+            <div className="overview-team-heading"><div><div className="section-kicker">PEOPLE & ACCESS</div><h2 id="overview-team-title">Team accounts</h2><p>Owners and Viewers in your workspace.</p></div><button type="button" className="overview-directory-link" onClick={() => openAccounts('TEAM')}>View directory <Icon name="arrow" size={15} /></button></div>
+            {adminLoading ? <div className="overview-team-message">Loading accounts…</div> : teamAccounts.length === 0 ? <div className="overview-team-message">No Owner or Viewer accounts yet.</div> : <div className="table-scroll"><table className="accounts-table overview-team-table"><thead><tr><th>ACCOUNT</th><th>ROLE</th><th>STATUS</th></tr></thead><tbody>{teamAccounts.map(account => <tr key={account.id}><td><div className="account-identity"><div className={`account-avatar ${account.role === 'VIEWER' ? 'avatar-viewer' : ''}`}>{initials(account.displayName)}</div><div className="account-name"><strong>{account.displayName}</strong><span>{account.email}</span></div></div></td><td><span className={`role-pill role-${account.role.toLowerCase()}`}>{account.role === 'OWNER' ? 'Owner' : 'Viewer'}</span></td><td><span className={`status-pill ${account.active ? 'status-active' : 'status-inactive'}`}><span />{account.active ? 'Active' : 'Inactive'}</span></td></tr>)}</tbody></table></div>}
+            <div className="overview-team-footer"><span><strong>{teamAccounts.length}</strong> Owner and Viewer accounts</span><span>Account access is managed by your administrator</span></div>
           </section>}
 
           {adminPage === 'accounts' && <section className="accounts-card" id="accounts" aria-labelledby="accounts-title">
@@ -349,6 +457,14 @@ function App() {
             </tbody></table></div>
             <div className="directory-footer"><span>Showing <strong>{filteredUsers.length}</strong> of <strong>{adminUsers.length}</strong> accounts</span><span className="directory-secure"><Icon name="lock" size={13} /> Account controls are server-authorized</span></div>
           </section>}
+          {adminPage === 'activity' && <section className="accounts-card activity-card" aria-labelledby="activity-title">
+            <div className="section-heading"><div><div className="section-kicker">SECURITY RECORD</div><h2 id="activity-title">Recent activity</h2><p>Latest 100 recorded events. Document contents and file data are never shown.</p></div><span className="status-pill status-active"><span /> Read only</span></div>
+            {activityMessage && <p className="admin-feedback">{activityMessage}</p>}
+            <div className="table-scroll"><table className="accounts-table activity-table"><thead><tr><th>EVENT</th><th>ACCOUNT</th><th>RESOURCE</th><th>RESULT</th><th>WHEN</th></tr></thead><tbody>
+              {activityLoading ? <tr><td colSpan="5" className="table-message">Loading activity…</td></tr> : activityEntries.length === 0 ? <tr><td colSpan="5" className="table-message">No activity has been recorded yet.</td></tr> : activityEntries.map(entry => <tr key={entry.id}><td><strong className="activity-action">{entry.action.replaceAll('_', ' ')}</strong><span className="activity-reason">{entry.reasonCode.replaceAll('_', ' ').toLowerCase()}</span></td><td><div className="account-name"><strong>{entry.actorName || 'Unavailable account'}</strong><span>{entry.actorEmail || 'No account email recorded'}</span></div></td><td><span className="activity-resource">{entry.targetType.toLowerCase()}{entry.targetId ? ` · ${entry.targetId.slice(0, 8)}` : ''}</span></td><td><span className={`status-pill ${entry.outcome === 'ALLOWED' ? 'status-active' : 'status-inactive'}`}><span />{entry.outcome.toLowerCase()}</span></td><td><time className="activity-time" dateTime={entry.occurredAt}>{new Date(entry.occurredAt).toLocaleString()}</time></td></tr>)}
+            </tbody></table></div>
+            <div className="directory-footer"><span>Showing <strong>{activityEntries.length}</strong> of the latest 100 recorded events</span><span className="directory-secure"><Icon name="lock" size={13} /> Administrator access is enforced by the server</span></div>
+          </section>}
         </> : user.role === 'OWNER' ? <section className="documents-card" aria-labelledby="documents-title">
           <div className="documents-heading"><div><div className="section-kicker">PRIVATE FILES</div><h2 id="documents-title">Your documents</h2><p>Upload, access, and share PDFs in your private workspace.</p></div><span className="status-pill status-active"><span /> Owner workspace</span></div>
           <form className="document-upload-form" onSubmit={uploadDocument}>
@@ -358,16 +474,35 @@ function App() {
             <button className="primary-button document-submit" type="submit" disabled={documentBusy}>{documentBusy ? <><span className="spinner" /> Uploading…</> : <><Icon name="plus" size={16} /> Upload PDF</>}</button>
           </form>
           {documentMessage && <p className={`document-feedback ${documentMessage.startsWith('PDF uploaded') ? 'success' : ''}`} role="status">{documentMessage}</p>}
-          <div className="documents-list">{documents.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>No documents uploaded yet.</span></div> : documents.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB</span></div><a className="download-link" href={`/api/documents/${document.id}/download`} aria-label={`Download ${document.title}`}><Icon name="download" size={17} /><span>Download</span></a><div className="share-controls"><select aria-label={`Choose viewer for ${document.title}`} value={shareSelections[document.id]?.userId || ''} onChange={e => setShareSelections(current => ({ ...current, [document.id]: { userId: e.target.value, permission: current[document.id]?.permission || 'READ' } }))}><option value="">{eligibleViewers.length ? 'Select viewer' : 'No active viewers'}</option>{eligibleViewers.map(viewer => <option key={viewer.id} value={viewer.id}>{viewer.displayName}</option>)}</select><select aria-label={`Choose permission for ${document.title}`} value={shareSelections[document.id]?.permission || 'READ'} onChange={e => setShareSelections(current => ({ ...current, [document.id]: { ...current[document.id], permission: e.target.value } }))}><option value="READ">READ</option><option value="EDIT">EDIT</option></select><button className="download-link" type="button" disabled={!shareSelections[document.id]?.userId || documentBusy} onClick={() => changeGrant(document.id, shareSelections[document.id].userId, shareSelections[document.id].permission)}>Share</button>{(documentGrants[document.id] || []).map(grant => <span className="grant-chip" key={grant.userId}>{grant.displayName}: {grant.permission}<button type="button" aria-label={`Revoke ${grant.displayName}`} onClick={() => revokeGrant(document.id, grant)}>Revoke</button></span>)}</div></article>)}</div>
+          <DocumentSearchControls {...{ documentSearch, setDocumentSearch, documentOwnerSearch, setDocumentOwnerSearch, documentCategorySearch, setDocumentCategorySearch, documentFromDate, setDocumentFromDate, documentToDate, setDocumentToDate }} />{documentEditor && <DocumentMetadataEditor {...{ documentEditor, setDocumentEditor, saveDocumentMetadata, documentBusy }} />}<div className="documents-list">{filteredDocuments.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>{documents.length === 0 ? 'No documents uploaded yet.' : 'No documents match these filters.'}</span></div> : filteredDocuments.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB · {document.createdAt ? new Date(document.createdAt).toLocaleDateString() : ''}</span></div><a className="download-link" href={`/api/documents/${document.id}/download`} aria-label={`Download ${document.title}`}><Icon name="download" size={17} /><span>Download</span></a><button className="document-edit-button" type="button" onClick={() => setDocumentEditor({ id: document.id, title: document.title, category: document.category })}>Edit details</button><button className="document-delete-button" type="button" onClick={() => deleteDocument(document)} disabled={documentBusy}>Delete</button><div className="share-controls"><select aria-label={`Choose viewer for ${document.title}`} value={shareSelections[document.id]?.userId || ''} onChange={e => setShareSelections(current => ({ ...current, [document.id]: { userId: e.target.value, permission: current[document.id]?.permission || 'READ' } }))}><option value="">{eligibleViewers.length ? 'Select viewer' : 'No active viewers'}</option>{eligibleViewers.map(viewer => <option key={viewer.id} value={viewer.id}>{viewer.displayName}</option>)}</select><select aria-label={`Choose permission for ${document.title}`} value={shareSelections[document.id]?.permission || 'READ'} onChange={e => setShareSelections(current => ({ ...current, [document.id]: { ...current[document.id], permission: e.target.value } }))}><option value="READ">READ</option><option value="EDIT">EDIT</option></select><button className="download-link" type="button" disabled={!shareSelections[document.id]?.userId || documentBusy} onClick={() => changeGrant(document.id, shareSelections[document.id].userId, shareSelections[document.id].permission)}>Share</button>{(documentGrants[document.id] || []).map(grant => <span className="grant-chip" key={grant.userId}>{grant.displayName}: {grant.permission}<button type="button" aria-label={`Revoke ${grant.displayName}`} onClick={() => revokeGrant(document.id, grant)}>Revoke</button></span>)}</div></article>)}</div>
           {user.role === 'OWNER' && eligibleViewers.length === 0 && !viewerOptionsFailed && <p className="share-guidance">No active Viewer accounts are available. Ask an Administrator to create or reactivate a Viewer account, then refresh this page.</p>}
+          {deletedDocuments.length > 0 && <section className="deleted-documents" aria-labelledby="deleted-documents-title"><div><div className="section-kicker">RECOVERY</div><h3 id="deleted-documents-title">Recently deleted</h3><p>Restoring a document does not restore previous Viewer access. Share it again when you are ready.</p></div><div className="deleted-documents-list">{deletedDocuments.map(document => <article className="deleted-document-row" key={document.id}><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename}</span></div><button className="document-edit-button" type="button" onClick={() => restoreDocument(document)} disabled={documentBusy}>{documentBusy ? 'Working…' : 'Restore'}</button></article>)}</div></section>}
           <div className="documents-security"><Icon name="lock" size={14} /> Viewers can access only documents currently shared with them. Revocation blocks their next request.</div>
-        </section> : user.role === 'VIEWER' ? <section className="documents-card" aria-labelledby="documents-title"><div className="documents-heading"><div><div className="section-kicker">SHARED FILES</div><h2 id="documents-title">Documents shared with you</h2><p>Only files an Owner has granted to your account appear here.</p></div><span className="status-pill status-active"><span /> Viewer workspace</span></div><div className="documents-list">{documents.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>No documents have been shared with you yet.</span></div> : documents.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB · {document.canEdit ? 'EDIT access' : 'READ access'}</span></div><a className="download-link" href={`/api/documents/${document.id}/download`}><Icon name="download" size={17} /><span>Download</span></a></article>)}</div></section> : <section className="member-welcome"><div className="member-icon"><Icon name="shield" size={27} /></div><div><div className="section-kicker">YOUR ACCOUNT</div><h2>You’re signed in and ready.</h2><p>Your <strong>{roleName}</strong> account is active.</p><div className="member-status"><span className="status-pill status-active"><span /> Account active</span><span className="member-email">{user.email}</span></div></div></section>}
+        </section> : user.role === 'VIEWER' ? <section className="documents-card" aria-labelledby="documents-title"><div className="documents-heading"><div><div className="section-kicker">SHARED FILES</div><h2 id="documents-title">Documents shared with you</h2><p>Only files an Owner has granted to your account appear here.</p></div><span className="status-pill status-active"><span /> Viewer workspace</span></div><DocumentSearchControls {...{ documentSearch, setDocumentSearch, documentOwnerSearch, setDocumentOwnerSearch, documentCategorySearch, setDocumentCategorySearch, documentFromDate, setDocumentFromDate, documentToDate, setDocumentToDate }} />{documentEditor && <DocumentMetadataEditor {...{ documentEditor, setDocumentEditor, saveDocumentMetadata, documentBusy }} />}<div className="documents-list">{filteredDocuments.length === 0 ? <div className="documents-empty"><Icon name="file" size={22} /><span>{documents.length === 0 ? 'No documents have been shared with you yet.' : 'No documents match these filters.'}</span></div> : filteredDocuments.map(document => <article className="document-row" key={document.id}><div className="document-symbol"><Icon name="file" size={18} /></div><div className="document-info"><strong>{document.title}</strong><span>{document.category} · {document.originalFilename} · {(document.sizeBytes / 1024).toFixed(0)} KB · {document.canEdit ? 'EDIT access' : 'READ access'} · {document.createdAt ? new Date(document.createdAt).toLocaleDateString() : ''} · Shared by {document.ownerDisplayName}</span></div><a className="download-link" href={`/api/documents/${document.id}/download`}><Icon name="download" size={17} /><span>Download</span></a>{document.canEdit && <button className="document-edit-button" type="button" onClick={() => setDocumentEditor({ id: document.id, title: document.title, category: document.category })}>Edit details</button>}</article>)}</div></section> : <section className="member-welcome"><div className="member-icon"><Icon name="shield" size={27} /></div><div><div className="section-kicker">YOUR ACCOUNT</div><h2>You’re signed in and ready.</h2><p>Your <strong>{roleName}</strong> account is active.</p><div className="member-status"><span className="status-pill status-active"><span /> Account active</span><span className="member-email">{user.email}</span></div></div></section>}
 
         <footer className="page-footer"><span>TRUSTVAULT <span className="footer-dot">·</span> PRIVATE DOCUMENT SHARING</span><span>SESSION-PROTECTED WORKSPACE</span></footer>
       </div>
     </main>
 
     {createOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setCreateOpen(false); }}><section className="create-modal" role="dialog" aria-modal="true" aria-labelledby="create-title"><div className="modal-top"><div className="modal-icon"><Icon name="users" size={20} /></div><button className="modal-close" type="button" aria-label="Close dialog" onClick={() => setCreateOpen(false)}><Icon name="close" /></button></div><div className="modal-heading"><div className="section-kicker">NEW TEAM MEMBER</div><h2 id="create-title">Create an account</h2><p>Add an owner or viewer to your TrustVault workspace.</p></div><form className="create-form" onSubmit={createAccount}><div className="field"><label htmlFor="new-name">Full name</label><input id="new-name" value={newUser.displayName} onChange={e => setNewUser({ ...newUser, displayName: e.target.value })} required maxLength="120" placeholder="e.g. Alex Morgan" autoFocus /></div><div className="field"><label htmlFor="new-email">Email address</label><input id="new-email" type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} required maxLength="320" placeholder="alex@company.com" /></div><div className="field"><label htmlFor="new-role">Account role</label><select id="new-role" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })}><option value="OWNER">Owner — manages their own documents</option><option value="VIEWER">Viewer — receives granted access</option></select></div><div className="field"><label htmlFor="new-password">Temporary password</label><input id="new-password" type="password" value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} required minLength="12" maxLength="72" autoComplete="new-password" placeholder="At least 12 characters" /><span className="field-hint">12–72 characters. Share it securely with the new member.</span></div>{adminMessage && <p className="form-message" role="alert">{adminMessage}</p>}<div className="modal-actions"><button className="cancel-button" type="button" onClick={() => setCreateOpen(false)}>Cancel</button><button className="primary-button" type="submit" disabled={busy}>{busy ? <><span className="spinner" /> Creating…</> : <><Icon name="plus" size={17} /> Create account</>}</button></div></form><p className="modal-security"><Icon name="lock" size={14} /> Passwords are securely hashed and never shown again.</p></section></div>}
+  </div>;
+}
+
+function DocumentMetadataEditor({ documentEditor, setDocumentEditor, saveDocumentMetadata, documentBusy }) {
+  return <form className="document-metadata-editor" onSubmit={saveDocumentMetadata}>
+    <div className="field"><label htmlFor="edit-document-title">Document title</label><input id="edit-document-title" required maxLength="200" value={documentEditor.title} onChange={event => setDocumentEditor({ ...documentEditor, title: event.target.value })} /></div>
+    <div className="field"><label htmlFor="edit-document-category">Category</label><input id="edit-document-category" required maxLength="80" value={documentEditor.category} onChange={event => setDocumentEditor({ ...documentEditor, category: event.target.value })} /></div>
+    <div className="document-editor-actions"><button className="cancel-button" type="button" onClick={() => setDocumentEditor(null)}>Cancel</button><button className="primary-button" type="submit" disabled={documentBusy}>{documentBusy ? 'Saving…' : 'Save details'}</button></div>
+  </form>;
+}
+
+function DocumentSearchControls({ documentSearch, setDocumentSearch, documentOwnerSearch, setDocumentOwnerSearch, documentCategorySearch, setDocumentCategorySearch, documentFromDate, setDocumentFromDate, documentToDate, setDocumentToDate }) {
+  return <div className="document-search-toolbar" aria-label="Search documents">
+    <label><span>Document</span><input type="search" placeholder="Title or filename" value={documentSearch} onChange={event => setDocumentSearch(event.target.value)} /></label>
+    <label><span>Owner</span><input type="search" placeholder="Owner name or email" value={documentOwnerSearch} onChange={event => setDocumentOwnerSearch(event.target.value)} /></label>
+    <label><span>Category</span><input type="search" placeholder="Category" value={documentCategorySearch} onChange={event => setDocumentCategorySearch(event.target.value)} /></label>
+    <label><span>From</span><input type="date" value={documentFromDate} onChange={event => setDocumentFromDate(event.target.value)} /></label>
+    <label><span>To</span><input type="date" value={documentToDate} onChange={event => setDocumentToDate(event.target.value)} /></label>
   </div>;
 }
 

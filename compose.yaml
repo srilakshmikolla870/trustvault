@@ -15,5 +15,38 @@ services:
       timeout: 3s
       retries: 10
 
+  backend:
+    profiles: ["app"]
+    build:
+      context: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-trustvault}
+      DB_USERNAME: ${DB_USERNAME:-${POSTGRES_USER:-trustvault_app}}
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}}
+      FLYWAY_URL: ${FLYWAY_URL:-jdbc:postgresql://postgres:5432/${POSTGRES_DB:-trustvault}}
+      FLYWAY_USERNAME: ${FLYWAY_USERNAME:-${POSTGRES_USER:-trustvault_app}}
+      FLYWAY_PASSWORD: ${FLYWAY_PASSWORD:-${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}}
+      TRUSTVAULT_STORAGE_DIR: /var/lib/trustvault/files
+      TRUSTVAULT_BOOTSTRAP_ADMIN_EMAIL: ${TRUSTVAULT_BOOTSTRAP_ADMIN_EMAIL:-}
+      TRUSTVAULT_BOOTSTRAP_ADMIN_PASSWORD: ${TRUSTVAULT_BOOTSTRAP_ADMIN_PASSWORD:-}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    volumes:
+      - trustvault-files:/var/lib/trustvault/files
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    profiles: ["app"]
+    build:
+      context: ./frontend
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   trustvault-postgres:
+  trustvault-files:
