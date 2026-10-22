@@ -72,6 +72,14 @@ These entries summarize actual requests and review work from the development con
 
 **Correction and evidence:** Documents now distinguish user-confirmed public workflows, the earlier 26-test result, the disposable database check, and live Render limitations. `npm run build` and `git diff --check` passed. The current Maven test run could not be launched in this environment (`Access is denied` from the Maven executable), so the new Java test is not yet verified. See [commit 0693c07](https://github.com/srilakshmikolla870/trustvault/commit/0693c07) for the documentation update and revocation test. This commit is local and has not been pushed because the Git credential helper cannot start in this execution environment.
 
+## 2026-10-22 — Demo setup accuracy and hand-in follow-up
+
+**Prompt summary:** Finish the remaining challenge items, verify the latest tests, and update GitHub and Render.
+
+**Output:** Corrected the sample-PDF generator path in the demo setup instructions and clarified that judge passwords should not be committed to the public repository. The Maven test command was attempted again but the environment returned `Access is denied`; no backend test result is claimed for the new revocation test. Render dashboard access and credentials for creating judge accounts are not available in this session, so the live database and account setup remain pending.
+
+**Evidence and remaining work:** `git diff --check` and the frontend production build passed for this update. Push the queued local commits to GitHub and check CI; once pushed, Render should redeploy from `main`. Create and manually verify dedicated synthetic judge accounts in the live app, complete the public workflow checks, and record the five-minute video before marking the hand-in complete.
+
 ## Reusable context
 
 TrustVault uses React, Java/Spring Boot, PostgreSQL, and session authentication. Deny document access by default. The server checks current ownership or a named per-document READ/EDIT grant on protected requests; roles alone do not grant access to files. Keep file bytes private, make revocation effective for the next request, audit allowed and denied sensitive actions, and never log secrets or file bytes. Review actual diffs and test results; distinguish source-level tests from database and live HTTP evidence. Do not claim Render's managed database has separate runtime/migration roles.
