@@ -41,7 +41,7 @@ Folders, external/public links, document versions, automated retention/purge, mu
 - [x] Named per-document READ/EDIT grants and revocation are implemented.
 - [x] Server-side ownership/current-grant checks and cross-user service tests exist.
 - [x] Audit activity view, threat register, API documentation, migrations, local setup, and deployment instructions exist.
-- [ ] Repository visibility follows the challenge's final hand-in policy; the repository is currently private pending the user's deadline/policy decision.
+- [x] Repository is public for challenge judging.
 - [x] Public HTTPS demo is available: https://trustvault-demo-iy81.onrender.com
 - [x] Public health endpoint returned `UP`; user confirmed sign-in and basic Owner-to-Viewer sharing workflow.
 - [x] Disposable PostgreSQL hardening check passed on 2026-10-22.
@@ -55,6 +55,6 @@ Folders, external/public links, document versions, automated retention/purge, mu
 - [x] Verify the Owner can grant and revoke READ access for the dedicated Viewer.
 - [x] Verify Viewer sign-in, empty shared-files list after revocation, and direct download denial.
 - [ ] Review the complete audit activity on the deployed app; local automated tests assert representative allow/deny event calls and that inactive-session/CSRF event SQL contains no secrets, file bytes, or storage paths.
-- [ ] Record and review the five-minute demo video.
+- [x] Record and review the five-minute demo video; compressed MP4 is linked from the repository README.
 - [ ] Correct prompt-history entries with commit references and push the final hand-in materials.
 - [ ] Plan for the free Render database's expiration and lack of backups; export demo evidence before expiry.

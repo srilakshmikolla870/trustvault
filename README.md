@@ -6,6 +6,8 @@ Secure document sharing for the Snovasys Fresher Hiring Challenge 2026.
 
 The application is deployed at [https://trustvault-demo-iy81.onrender.com](https://trustvault-demo-iy81.onrender.com). The user confirmed sign-in and the Owner-to-Viewer sharing workflow on the public demo on 2026-10-22; the public health endpoint returned `UP` on the same date.
 
+The five-minute demo recording is available at [demo/trustvault-demo.mp4](demo/trustvault-demo.mp4).
+
 Owners can upload, list, download, search, edit, share, soft-delete, and restore PDFs. Named Viewers receive READ or EDIT grants, and Owners can revoke access. The server checks current access on protected requests. Administrators manage accounts and review recent activity but do not gain document access from their role.
 
 The audit append-only triggers and separate migration/runtime roles were verified on a disposable PostgreSQL 16 database on 2026-10-22. **They have not been applied to the live Render database.** Render's current Blueprint uses one managed credential for both API requests and Flyway migrations. Credential rotation alone would not prove least-privilege SQL grants, so do not claim live role separation unless the grants are tested. The free database expires after 30 days and has no backups. Use synthetic demo content only.
